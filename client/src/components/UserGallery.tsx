@@ -19,15 +19,17 @@ import { useDarkMode } from '../hooks/useDarkMode';
 import { MediaItem, Comment, Like, TimelineEvent } from '../types';
 import {
   uploadUserFiles,
-  uploadUserVideoBlob,
+  uploadUserVideo,
   loadUserGallery,
+  loadUserMediaItems,
+  loadUserComments,
+  loadUserLikes,
+  loadUserStories,
   deleteUserMediaItem,
-  loadMediaComments,
   addComment,
   deleteComment,
-  loadMediaLikes,
   toggleLike,
-  addUserNote
+  deleteStory
 } from '../services/hybridGalleryService';
 import { Story } from '../services/liveService';
 import { getDeviceId, getUserName, setUserName } from '../utils/deviceId';
@@ -70,17 +72,37 @@ export const UserGallery: React.FC = () => {
     }
   }, []);
 
-  // Load user data - use demo user if no auth
+  // Load user data
   useEffect(() => {
-    if (currentUserName) {
-      const userId = currentUser?.uid || 'demo-user';
-      const unsubscribeGallery = loadUserGallery(userId, setMediaItems);
-
-      return () => {
-        unsubscribeGallery();
-      };
-    }
-  }, [currentUser, currentUserName]);
+    const userId = currentUser?.uid || 'demo-user';
+    
+    // Load media items
+    const unsubscribeMedia = loadUserMediaItems(userId, (items) => {
+      setMediaItems(items);
+    });
+    
+    // Load comments
+    const unsubscribeComments = loadUserComments(userId, (comments) => {
+      setComments(comments);
+    });
+    
+    // Load likes
+    const unsubscribeLikes = loadUserLikes(userId, (likes) => {
+      setLikes(likes);
+    });
+    
+    // Load stories
+    const unsubscribeStories = loadUserStories(userId, (stories) => {
+      setStories(stories);
+    });
+    
+    return () => {
+      unsubscribeMedia();
+      unsubscribeComments();
+      unsubscribeLikes();
+      unsubscribeStories();
+    };
+  }, [currentUser]);
 
   const handleNameSubmit = async (name: string) => {
     try {
@@ -186,30 +208,33 @@ export const UserGallery: React.FC = () => {
   };
 
   const handleLike = async (mediaId: string) => {
+    const userId = currentUser?.uid || 'demo-user';
     const userName = userProfile?.displayName || currentUser?.displayName || 'Demo User';
     const deviceId = currentUser?.uid || 'demo-user';
 
     try {
-      await toggleLike(mediaId, userName, deviceId);
+      await toggleLike(userId, mediaId, userName, deviceId);
     } catch (error) {
       console.error('Like error:', error);
     }
   };
 
   const handleComment = async (mediaId: string, text: string) => {
+    const userId = currentUser?.uid || 'demo-user';
     const userName = userProfile?.displayName || currentUser?.displayName || 'Demo User';
     const deviceId = currentUser?.uid || 'demo-user';
 
     try {
-      await addComment(mediaId, text, userName, deviceId);
+      await addComment(userId, mediaId, text, userName, deviceId);
     } catch (error) {
       console.error('Comment error:', error);
     }
   };
 
   const handleDeleteComment = async (commentId: string) => {
+    const userId = currentUser?.uid || 'demo-user';
     try {
-      await deleteComment(commentId);
+      await deleteComment(userId, commentId);
     } catch (error) {
       console.error('Delete comment error:', error);
     }
@@ -260,6 +285,15 @@ export const UserGallery: React.FC = () => {
             isDarkMode={isDarkMode}
           />
           <div className="flex justify-end items-center gap-4 p-4">
+            <button
+              onClick={() => {
+                localStorage.clear();
+                window.location.reload();
+              }}
+              className="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+            >
+              Clear Data
+            </button>
             <button
               onClick={toggleDarkMode}
               className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
@@ -333,8 +367,9 @@ export const UserGallery: React.FC = () => {
         {activeTab === 'timeline' && (
           <Timeline 
             isDarkMode={isDarkMode}
-            userName={userProfile.displayName}
+            userName={userProfile?.displayName || 'Demo User'}
             isAdmin={isAdmin}
+            currentUser={currentUser}
           />
         )}
 

@@ -7,9 +7,10 @@ interface TimelineProps {
   isDarkMode: boolean;
   userName: string;
   isAdmin: boolean;
+  currentUser?: any;
 }
 
-export const Timeline: React.FC<TimelineProps> = ({ isDarkMode, userName, isAdmin }) => {
+export const Timeline: React.FC<TimelineProps> = ({ isDarkMode, userName, isAdmin, currentUser }) => {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null);
@@ -44,7 +45,7 @@ export const Timeline: React.FC<TimelineProps> = ({ isDarkMode, userName, isAdmi
         setIsLoading(true);
         setError(null);
         
-        unsubscribe = loadUserTimeline('user1', (timelineEvents) => {
+        unsubscribe = loadUserTimeline(currentUser?.uid || 'demo-user', (timelineEvents) => {
           console.log(`Timeline events loaded: ${timelineEvents.length}`);
           setEvents(timelineEvents);
           setIsLoading(false);
@@ -103,7 +104,8 @@ export const Timeline: React.FC<TimelineProps> = ({ isDarkMode, userName, isAdmi
   const handleDelete = async (event: TimelineEvent) => {
     if (window.confirm('Dieses Ereignis wirklich löschen?')) {
       try {
-        await deleteTimelineEvent('user1', event.id);
+        const userId = currentUser?.uid || 'demo-user';
+        await deleteTimelineEvent(userId, event.id);
         console.log('Event deleted successfully');
       } catch (error) {
         console.error('Error deleting event:', error);
@@ -146,9 +148,9 @@ export const Timeline: React.FC<TimelineProps> = ({ isDarkMode, userName, isAdmi
           }
         } as FileList;
         
-        await uploadTimelineEvent('user1', eventData, fileList, setUploadProgress);
+        await uploadTimelineEvent(currentUser?.uid || 'demo-user', eventData, fileList, setUploadProgress);
       } else {
-        await uploadTimelineEvent('user1', eventData, {
+        await uploadTimelineEvent(currentUser?.uid || 'demo-user', eventData, {
           length: 0,
           item: () => null,
           [Symbol.iterator]: function* () {}

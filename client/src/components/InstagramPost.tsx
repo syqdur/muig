@@ -40,11 +40,12 @@ export const InstagramPost: React.FC<InstagramPostProps> = ({
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [editNoteText, setEditNoteText] = useState(item.noteText || '');
 
-  const isLiked = likes.some(like => like.userName === userName);
-  const likeCount = likes.length;
+  const currentDeviceId = typeof window !== 'undefined' ? (window as any).deviceId || 'demo-device' : 'demo-device';
+  const isLiked = likes?.some(like => like.deviceId === currentDeviceId) || false;
+  const likeCount = likes?.length || 0;
 
   // Check if current user can delete this post
-  const canDeletePost = isAdmin || item.uploadedBy === userName;
+  const canDeletePost = showDeleteButton;
   
   // Check if current user can edit this note
   const canEditNote = item.type === 'note' && item.uploadedBy === userName;
@@ -279,6 +280,22 @@ export const InstagramPost: React.FC<InstagramPostProps> = ({
         </div>
 
         {/* Likes */}
+        <div className="flex items-center gap-4 mb-3">
+          <button 
+            onClick={() => onToggleLike(item.id)}
+            className={`flex items-center gap-2 transition-colors ${
+              isLiked ? 'text-red-500' : isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}
+          >
+            <Heart 
+              className={`w-6 h-6 transition-colors ${isLiked ? 'text-red-500 fill-red-500' : isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} 
+            />
+          </button>
+          <MessageCircle className={`w-6 h-6 transition-colors duration-300 ${
+            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`} />
+        </div>
+
         <div className="mb-2">
           <span className={`font-semibold text-sm transition-colors duration-300 ${
             isDarkMode ? 'text-white' : 'text-gray-900'

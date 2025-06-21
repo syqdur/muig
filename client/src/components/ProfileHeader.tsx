@@ -51,11 +51,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, onEdit, i
           }`}>
             {profile.displayName}
           </h2>
-          <p className={`text-sm transition-colors duration-300 ${
-            isDarkMode ? 'text-gray-400' : 'text-gray-500'
-          }`}>
-            {profile.email}
-          </p>
+
           <div className={`flex gap-6 mt-2 text-sm transition-colors duration-300 ${
             isDarkMode ? 'text-gray-300' : 'text-gray-700'
           }`}>

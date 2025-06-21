@@ -7,18 +7,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Anonymous user routes
   app.get("/api/anonymous-users/:deviceId", async (req, res) => {
     try {
-      const user = await storage.getAnonymousUserByDeviceId(req.params.deviceId);
+      const deviceId = decodeURIComponent(req.params.deviceId);
+      console.log("Looking for device ID:", deviceId);
+      const user = await storage.getAnonymousUserByDeviceId(deviceId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
       res.json(user);
     } catch (error) {
+      console.error("Error getting anonymous user:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
   app.post("/api/anonymous-users", async (req, res) => {
     try {
+      console.log("Creating anonymous user with data:", req.body);
       const userData = insertAnonymousUserSchema.parse(req.body);
       
       // Check if user already exists
@@ -30,7 +34,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.createAnonymousUser(userData);
       res.status(201).json(user);
     } catch (error) {
-      res.status(400).json({ message: "Invalid user data" });
+      console.error("Error creating anonymous user:", error);
+      res.status(400).json({ message: "Invalid user data", error: error.message });
     }
   });
 

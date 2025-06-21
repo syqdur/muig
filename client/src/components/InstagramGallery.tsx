@@ -170,7 +170,7 @@ export const InstagramGallery: React.FC<InstagramGalleryProps> = ({
                 onToggleLike={onToggleLike}
                 onDelete={onDelete}
                 onEditNote={onEditNote}
-                showDeleteButton={isAdmin}
+                showDeleteButton={true}
                 userName={userName}
                 isAdmin={isAdmin}
                 isDarkMode={isDarkMode}
@@ -186,7 +186,7 @@ export const InstagramGallery: React.FC<InstagramGalleryProps> = ({
                 onToggleLike={onToggleLike}
                 onDelete={onDelete}
                 onEditNote={onEditNote}
-                showDeleteButton={isAdmin}
+                showDeleteButton={true}
                 userName={userName}
                 isAdmin={isAdmin}
                 onClick={() => onItemClick(index)}

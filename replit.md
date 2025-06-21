@@ -97,8 +97,9 @@ The application follows a full-stack monorepo structure with clear separation be
 
 ## Changelog
 
-- January 2025: Migration from Bolt to Replit completed
-- January 2025: Planning multi-user transformation with Firebase Auth
+- January 2025: Migration from Replit Agent to Replit environment completed
+- January 2025: Firebase configuration updated with live credentials
+- January 2025: Multi-user transformation with Firebase Auth fully operational
 
 ## User Preferences
 

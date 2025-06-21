@@ -35,6 +35,26 @@ const saveToStorage = <T>(key: string, data: T[]): void => {
 // Generate unique IDs
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+// Convert file to base64
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+};
+
+// Convert blob to base64
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+};
+
 // Media Management
 export const uploadUserFiles = async (
   userId: string,
@@ -49,12 +69,12 @@ export const uploadUserFiles = async (
   
   for (const file of Array.from(files)) {
     const id = generateId();
-    const url = URL.createObjectURL(file);
+    const base64 = await fileToBase64(file);
     
     const mediaItem: MediaItem = {
       id,
       name: file.name,
-      url,
+      url: base64,
       uploadedBy: userName,
       uploadedAt: new Date().toISOString(),
       deviceId,
@@ -79,21 +99,23 @@ export const uploadUserFiles = async (
   }));
 };
 
-export const uploadUserVideoBlob = async (
+export const uploadUserVideo = async (
   userId: string,
   videoBlob: Blob, 
   userName: string, 
   deviceId: string,
   onProgress: (progress: number) => void
 ): Promise<void> => {
-  const mediaItems = getFromStorage<MediaItem>(STORAGE_KEYS.MEDIA);
+  const mediaItems = getFromStorage<MediaItem>(STORAGE_KEYS.MEDIA(userId));
   const id = generateId();
-  const url = URL.createObjectURL(videoBlob);
+  
+  // Convert blob to base64 for persistent storage
+  const base64 = await blobToBase64(videoBlob);
   
   const mediaItem: MediaItem = {
     id,
     name: 'Recorded Video',
-    url,
+    url: base64,
     uploadedBy: userName,
     uploadedAt: new Date().toISOString(),
     deviceId,
@@ -105,12 +127,12 @@ export const uploadUserVideoBlob = async (
   };
   
   mediaItems.push(mediaItem);
-  saveToStorage(STORAGE_KEYS.MEDIA, mediaItems);
+  saveToStorage(STORAGE_KEYS.MEDIA(userId), mediaItems);
   onProgress(100);
   
   // Trigger storage event
   window.dispatchEvent(new StorageEvent('storage', {
-    key: STORAGE_KEYS.MEDIA,
+    key: STORAGE_KEYS.MEDIA(userId),
     newValue: JSON.stringify(mediaItems)
   }));
 };
@@ -121,7 +143,7 @@ export const addUserNote = async (
   userName: string,
   deviceId: string
 ): Promise<void> => {
-  const mediaItems = getFromStorage<MediaItem>(STORAGE_KEYS.MEDIA);
+  const mediaItems = getFromStorage<MediaItem>(STORAGE_KEYS.MEDIA(userId));
   const id = generateId();
   
   const mediaItem: MediaItem = {
@@ -139,29 +161,28 @@ export const addUserNote = async (
   };
   
   mediaItems.push(mediaItem);
-  saveToStorage(STORAGE_KEYS.MEDIA, mediaItems);
+  saveToStorage(STORAGE_KEYS.MEDIA(userId), mediaItems);
   
   // Trigger storage event
   window.dispatchEvent(new StorageEvent('storage', {
-    key: STORAGE_KEYS.MEDIA,
+    key: STORAGE_KEYS.MEDIA(userId),
     newValue: JSON.stringify(mediaItems)
   }));
 };
 
 // Gallery loading with real-time updates
-export const loadUserGallery = (userId: string, callback: (items: MediaItem[]) => void) => {
+export const loadUserMediaItems = (userId: string, callback: (items: MediaItem[]) => void) => {
   const loadData = () => {
-    const mediaItems = getFromStorage<MediaItem>(STORAGE_KEYS.MEDIA);
-    const userItems = mediaItems.filter(item => item.userId === userId);
-    callback(userItems);
+    const items = getFromStorage<MediaItem>(STORAGE_KEYS.MEDIA(userId));
+    // Sort by upload date, newest first
+    items.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+    callback(items);
   };
   
-  // Initial load
   loadData();
   
-  // Listen for storage changes
   const handleStorageChange = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEYS.MEDIA) {
+    if (e.key === STORAGE_KEYS.MEDIA(userId)) {
       loadData();
     }
   };
@@ -173,27 +194,47 @@ export const loadUserGallery = (userId: string, callback: (items: MediaItem[]) =
   };
 };
 
+export const loadUserGallery = (userId: string, callback: (items: MediaItem[]) => void) => {
+  return loadUserMediaItems(userId, callback);
+};
+
 export const deleteUserMediaItem = async (userId: string, item: MediaItem): Promise<void> => {
-  const mediaItems = getFromStorage<MediaItem>(STORAGE_KEYS.MEDIA);
+  const mediaItems = getFromStorage<MediaItem>(STORAGE_KEYS.MEDIA(userId));
   const filteredItems = mediaItems.filter(media => media.id !== item.id);
-  saveToStorage(STORAGE_KEYS.MEDIA, filteredItems);
-  
-  // Revoke object URL to free memory
-  if (item.url.startsWith('blob:')) {
-    URL.revokeObjectURL(item.url);
-  }
+  saveToStorage(STORAGE_KEYS.MEDIA(userId), filteredItems);
   
   // Trigger storage event
   window.dispatchEvent(new StorageEvent('storage', {
-    key: STORAGE_KEYS.MEDIA,
+    key: STORAGE_KEYS.MEDIA(userId),
     newValue: JSON.stringify(filteredItems)
   }));
 };
 
 // Comments Management
-export const loadMediaComments = (mediaId: string, callback: (comments: Comment[]) => void) => {
+export const loadUserComments = (userId: string, callback: (comments: Comment[]) => void) => {
   const loadData = () => {
-    const comments = getFromStorage<Comment>(STORAGE_KEYS.COMMENTS);
+    const comments = getFromStorage<Comment>(STORAGE_KEYS.COMMENTS(userId));
+    callback(comments);
+  };
+  
+  loadData();
+  
+  const handleStorageChange = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEYS.COMMENTS(userId)) {
+      loadData();
+    }
+  };
+  
+  window.addEventListener('storage', handleStorageChange);
+  
+  return () => {
+    window.removeEventListener('storage', handleStorageChange);
+  };
+};
+
+export const loadMediaComments = (userId: string, mediaId: string, callback: (comments: Comment[]) => void) => {
+  const loadData = () => {
+    const comments = getFromStorage<Comment>(STORAGE_KEYS.COMMENTS(userId));
     const mediaComments = comments.filter(comment => comment.mediaId === mediaId);
     callback(mediaComments);
   };
@@ -201,7 +242,7 @@ export const loadMediaComments = (mediaId: string, callback: (comments: Comment[
   loadData();
   
   const handleStorageChange = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEYS.COMMENTS) {
+    if (e.key === STORAGE_KEYS.COMMENTS(userId)) {
       loadData();
     }
   };
@@ -214,12 +255,13 @@ export const loadMediaComments = (mediaId: string, callback: (comments: Comment[
 };
 
 export const addComment = async (
+  userId: string,
   mediaId: string,
   text: string,
   userName: string,
   deviceId: string
 ): Promise<void> => {
-  const comments = getFromStorage<Comment>(STORAGE_KEYS.COMMENTS);
+  const comments = getFromStorage<Comment>(STORAGE_KEYS.COMMENTS(userId));
   const id = generateId();
   
   const comment: Comment = {
@@ -232,37 +274,36 @@ export const addComment = async (
   };
   
   comments.push(comment);
-  saveToStorage(STORAGE_KEYS.COMMENTS, comments);
+  saveToStorage(STORAGE_KEYS.COMMENTS(userId), comments);
   
   window.dispatchEvent(new StorageEvent('storage', {
-    key: STORAGE_KEYS.COMMENTS,
+    key: STORAGE_KEYS.COMMENTS(userId),
     newValue: JSON.stringify(comments)
   }));
 };
 
-export const deleteComment = async (commentId: string): Promise<void> => {
-  const comments = getFromStorage<Comment>(STORAGE_KEYS.COMMENTS);
+export const deleteComment = async (userId: string, commentId: string): Promise<void> => {
+  const comments = getFromStorage<Comment>(STORAGE_KEYS.COMMENTS(userId));
   const filteredComments = comments.filter(comment => comment.id !== commentId);
-  saveToStorage(STORAGE_KEYS.COMMENTS, filteredComments);
+  saveToStorage(STORAGE_KEYS.COMMENTS(userId), filteredComments);
   
   window.dispatchEvent(new StorageEvent('storage', {
-    key: STORAGE_KEYS.COMMENTS,
+    key: STORAGE_KEYS.COMMENTS(userId),
     newValue: JSON.stringify(filteredComments)
   }));
 };
 
 // Likes Management
-export const loadMediaLikes = (mediaId: string, callback: (likes: Like[]) => void) => {
+export const loadUserLikes = (userId: string, callback: (likes: Like[]) => void) => {
   const loadData = () => {
-    const likes = getFromStorage<Like>(STORAGE_KEYS.LIKES);
-    const mediaLikes = likes.filter(like => like.mediaId === mediaId);
-    callback(mediaLikes);
+    const likes = getFromStorage<Like>(STORAGE_KEYS.LIKES(userId));
+    callback(likes);
   };
   
   loadData();
   
   const handleStorageChange = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEYS.LIKES) {
+    if (e.key === STORAGE_KEYS.LIKES(userId)) {
       loadData();
     }
   };
@@ -274,18 +315,36 @@ export const loadMediaLikes = (mediaId: string, callback: (likes: Like[]) => voi
   };
 };
 
-export const toggleLike = async (
-  mediaId: string,
-  userName: string,
-  deviceId: string
-): Promise<void> => {
-  const likes = getFromStorage<Like>(STORAGE_KEYS.LIKES);
-  const existingLike = likes.find(like => like.mediaId === mediaId && like.userName === userName);
+export const loadMediaLikes = (userId: string, mediaId: string, callback: (likes: Like[]) => void) => {
+  const loadData = () => {
+    const likes = getFromStorage<Like>(STORAGE_KEYS.LIKES(userId));
+    const mediaLikes = likes.filter(like => like.mediaId === mediaId);
+    callback(mediaLikes);
+  };
+  
+  loadData();
+  
+  const handleStorageChange = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEYS.LIKES(userId)) {
+      loadData();
+    }
+  };
+  
+  window.addEventListener('storage', handleStorageChange);
+  
+  return () => {
+    window.removeEventListener('storage', handleStorageChange);
+  };
+};
+
+export const toggleLike = async (userId: string, mediaId: string, userName: string, deviceId: string): Promise<void> => {
+  const likes = getFromStorage<Like>(STORAGE_KEYS.LIKES(userId));
+  const existingLike = likes.find(like => like.mediaId === mediaId && like.deviceId === deviceId);
   
   if (existingLike) {
     // Remove like
     const filteredLikes = likes.filter(like => like.id !== existingLike.id);
-    saveToStorage(STORAGE_KEYS.LIKES, filteredLikes);
+    saveToStorage(STORAGE_KEYS.LIKES(userId), filteredLikes);
   } else {
     // Add like
     const id = generateId();
@@ -297,11 +356,11 @@ export const toggleLike = async (
       createdAt: new Date().toISOString()
     };
     likes.push(like);
-    saveToStorage(STORAGE_KEYS.LIKES, likes);
+    saveToStorage(STORAGE_KEYS.LIKES(userId), likes);
   }
   
   window.dispatchEvent(new StorageEvent('storage', {
-    key: STORAGE_KEYS.LIKES,
+    key: STORAGE_KEYS.LIKES(userId),
     newValue: JSON.stringify(likes)
   }));
 };
@@ -321,7 +380,7 @@ export const uploadTimelineEvent = async (
   files: FileList,
   onProgress: (progress: number) => void
 ): Promise<void> => {
-  const timelineEvents = getFromStorage<TimelineEvent>(STORAGE_KEYS.TIMELINE);
+  const timelineEvents = getFromStorage<TimelineEvent>(STORAGE_KEYS.TIMELINE(userId));
   const id = generateId();
   
   const mediaUrls: string[] = [];
@@ -333,8 +392,8 @@ export const uploadTimelineEvent = async (
     let uploaded = 0;
     
     for (const file of Array.from(files)) {
-      const url = URL.createObjectURL(file);
-      mediaUrls.push(url);
+      const base64 = await fileToBase64(file);
+      mediaUrls.push(base64);
       mediaTypes.push(file.type.startsWith('video/') ? 'video' : 'image');
       mediaFileNames.push(file.name);
       
@@ -361,28 +420,27 @@ export const uploadTimelineEvent = async (
   };
   
   timelineEvents.push(timelineEvent);
-  saveToStorage(STORAGE_KEYS.TIMELINE, timelineEvents);
+  saveToStorage(STORAGE_KEYS.TIMELINE(userId), timelineEvents);
   onProgress(100);
   
   window.dispatchEvent(new StorageEvent('storage', {
-    key: STORAGE_KEYS.TIMELINE,
+    key: STORAGE_KEYS.TIMELINE(userId),
     newValue: JSON.stringify(timelineEvents)
   }));
 };
 
 export const loadUserTimeline = (userId: string, callback: (events: TimelineEvent[]) => void) => {
   const loadData = () => {
-    const events = getFromStorage<TimelineEvent>(STORAGE_KEYS.TIMELINE);
-    const userEvents = events.filter(event => event.userId === userId);
+    const events = getFromStorage<TimelineEvent>(STORAGE_KEYS.TIMELINE(userId));
     // Sort by date descending
-    userEvents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    callback(userEvents);
+    events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    callback(events);
   };
   
   loadData();
   
   const handleStorageChange = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEYS.TIMELINE) {
+    if (e.key === STORAGE_KEYS.TIMELINE(userId)) {
       loadData();
     }
   };
@@ -395,23 +453,24 @@ export const loadUserTimeline = (userId: string, callback: (events: TimelineEven
 };
 
 export const deleteTimelineEvent = async (userId: string, eventId: string): Promise<void> => {
-  const events = getFromStorage<TimelineEvent>(STORAGE_KEYS.TIMELINE);
-  const eventToDelete = events.find(event => event.id === eventId);
-  
-  // Revoke object URLs to free memory
-  if (eventToDelete && eventToDelete.mediaUrls) {
-    eventToDelete.mediaUrls.forEach(url => {
-      if (url.startsWith('blob:')) {
-        URL.revokeObjectURL(url);
-      }
-    });
-  }
-  
+  const events = getFromStorage<TimelineEvent>(STORAGE_KEYS.TIMELINE(userId));
   const filteredEvents = events.filter(event => event.id !== eventId);
-  saveToStorage(STORAGE_KEYS.TIMELINE, filteredEvents);
+  saveToStorage(STORAGE_KEYS.TIMELINE(userId), filteredEvents);
   
   window.dispatchEvent(new StorageEvent('storage', {
-    key: STORAGE_KEYS.TIMELINE,
+    key: STORAGE_KEYS.TIMELINE(userId),
     newValue: JSON.stringify(filteredEvents)
   }));
+};
+
+// Stories Management (placeholder functions)
+export const loadUserStories = (userId: string, callback: (stories: any[]) => void) => {
+  // Return empty stories for now
+  callback([]);
+  return () => {};
+};
+
+export const deleteStory = async (storyId: string): Promise<void> => {
+  // Placeholder implementation
+  console.log('Story deleted:', storyId);
 };

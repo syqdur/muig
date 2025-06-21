@@ -76,7 +76,7 @@ export const SpotifyAdmin: React.FC<SpotifyAdminProps> = ({ isDarkMode }) => {
   const handleConnect = async () => {
     try {
       const authUrl = await getAuthorizationUrl();
-      window.location.href = authUrl;
+      window.open(authUrl, '_blank');
     } catch (error) {
       console.error('Failed to get authorization URL:', error);
       setError('Failed to initiate Spotify connection');

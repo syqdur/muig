@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Lock, Unlock, Settings, Download, Globe, Users, ExternalLink, Image, Video, MessageSquare, Gift, Heart, Star, Eye, Code, Music, Sparkles } from 'lucide-react';
 import { MediaItem } from '../types';
 import { downloadAllMedia } from '../services/downloadService';
-import { SiteStatus, updateSiteStatus } from '../services/siteStatusService';
+import { SiteStatus, updateSiteStatus } from '../services/databaseSiteStatusService';
 import { ShowcaseModal } from './ShowcaseModal';
 import { UserManagementModal } from './UserManagementModal';
 import { SpotifyAdmin } from './SpotifyAdmin';
@@ -13,6 +13,8 @@ interface AdminPanelProps {
   onToggleAdmin: (isAdmin: boolean) => void;
   mediaItems?: MediaItem[];
   siteStatus?: SiteStatus;
+  userId?: string; // For user-specific gallery context
+  galleryOwnerName?: string; // Name of the gallery owner
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
@@ -20,7 +22,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   isAdmin, 
   onToggleAdmin,
   mediaItems = [],
-  siteStatus
+  siteStatus,
+  userId,
+  galleryOwnerName
 }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [showDownloadWarning, setShowDownloadWarning] = useState(false);
@@ -76,7 +80,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsDownloading(true);
     
     try {
-      await downloadAllMedia(mediaItems);
+      await downloadAllMedia(mediaItems, galleryOwnerName);
       
       const downloadableItems = mediaItems.filter(item => item.type !== 'note');
       alert(`✅ Download erfolgreich!\n\n📊 Heruntergeladen:\n- ${mediaItems.filter(item => item.type === 'image').length} Bilder\n- ${mediaItems.filter(item => item.type === 'video').length} Videos\n- ${mediaItems.filter(item => item.type === 'note').length} Notizen\n\n💡 Verwende die Bilder für professionelle Fotobuch-Services!`);
@@ -104,14 +108,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const videoCount = mediaItems.filter(item => item.type === 'video').length;
     const noteCount = mediaItems.filter(item => item.type === 'note').length;
     
-    if (mediaItems.length === 0) return 'Keine Medien';
+    if (mediaItems.length === 0) return `Keine Medien${galleryOwnerName ? ` von ${galleryOwnerName}` : ''}`;
     
     const parts = [];
     if (imageCount > 0) parts.push(`${imageCount} Bild${imageCount > 1 ? 'er' : ''}`);
     if (videoCount > 0) parts.push(`${videoCount} Video${videoCount > 1 ? 's' : ''}`);
     if (noteCount > 0) parts.push(`${noteCount} Notiz${noteCount > 1 ? 'en' : ''}`);
     
-    return parts.join(', ') + ' als ZIP';
+    const owner = galleryOwnerName ? ` von ${galleryOwnerName}` : '';
+    return parts.join(', ') + owner + ' als ZIP';
   };
 
   const getSiteStatusInfo = () => {

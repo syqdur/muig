@@ -32,10 +32,11 @@ const downloadFileWithFetch = async (url: string, filename: string): Promise<Blo
   }
 };
 
-export const downloadAllMedia = async (mediaItems: MediaItem[]): Promise<void> => {
+export const downloadAllMedia = async (mediaItems: MediaItem[], galleryOwnerName?: string): Promise<void> => {
   try {
     const zip = new JSZip();
-    const mediaFolder = zip.folder('Hochzeitsbilder_Kristin_Maurizio');
+    const folderName = galleryOwnerName ? `Galerie_${galleryOwnerName.replace(/[^a-zA-Z0-9]/g, '_')}` : 'Galerie_Download';
+    const mediaFolder = zip.folder(folderName);
     
     if (!mediaFolder) {
       throw new Error('ZIP-Ordner konnte nicht erstellt werden');

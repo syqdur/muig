@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, MoreHorizontal, Sun, Moon } from 'lucide-react';
+import { AdminPanel } from './AdminPanel';
+import { AdminLoginModal } from './AdminLoginModal';
 import { useAuth } from '../contexts/AuthContext';
 import { UploadSection } from './UploadSection';
 import { InstagramGallery } from './InstagramGallery';
@@ -27,7 +29,7 @@ import {
   addUserNote,
   editUserNote,
   loadUserEvents
-} from '../services/galleryService';
+} from '../services/databaseGalleryService';
 import { Story } from '../services/liveService';
 
 export const UserGallery: React.FC = () => {
@@ -48,6 +50,8 @@ export const UserGallery: React.FC = () => {
   const [showStoryUpload, setShowStoryUpload] = useState(false);
   const [activeTab, setActiveTab] = useState<'gallery' | 'music' | 'timeline'>('gallery');
   const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
 
   // Load user data when authenticated
   useEffect(() => {
@@ -197,6 +201,19 @@ export const UserGallery: React.FC = () => {
     }
   };
 
+  const handleAdminToggle = (adminStatus: boolean) => {
+    if (adminStatus) {
+      setShowAdminLogin(true);
+    } else {
+      setIsAdmin(false);
+    }
+  };
+
+  const handleAdminLogin = (username: string) => {
+    setIsAdmin(true);
+    setShowAdminLogin(false);
+  };
+
   if (!currentUser || !userProfile) {
     return <div>Loading...</div>;
   }
@@ -281,19 +298,15 @@ export const UserGallery: React.FC = () => {
 
         {activeTab === 'timeline' && (
           <Timeline 
-            events={events}
-            onAddEvent={(event) => {/* TODO: Add event */}}
-            onEditEvent={(id, event) => {/* TODO: Edit event */}}
-            onDeleteEvent={(id) => {/* TODO: Delete event */}}
-            currentUser={userProfile.displayName}
-            isAdmin={false}
+            isDarkMode={isDarkMode}
+            userName={userProfile.displayName}
+            isAdmin={isAdmin}
           />
         )}
 
         {activeTab === 'music' && (
           <MusicWishlist 
-            userId={currentUser.uid}
-            userName={userProfile.displayName}
+            isDarkMode={isDarkMode}
           />
         )}
 
@@ -343,7 +356,26 @@ export const UserGallery: React.FC = () => {
             onClose={() => setShowProfileEditor(false)}
           />
         )}
+
+        {showAdminLogin && (
+          <AdminLoginModal
+            isOpen={showAdminLogin}
+            onClose={() => setShowAdminLogin(false)}
+            onLogin={handleAdminLogin}
+            isDarkMode={isDarkMode}
+          />
+        )}
       </div>
+
+      {/* Admin Panel */}
+      <AdminPanel 
+        isDarkMode={isDarkMode}
+        isAdmin={isAdmin}
+        onToggleAdmin={handleAdminToggle}
+        mediaItems={mediaItems}
+        userId={currentUser.uid}
+        galleryOwnerName={userProfile.displayName}
+      />
     </div>
   );
 };

@@ -2,17 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Music, Search, X, Plus, Trash2, ExternalLink, AlertCircle, RefreshCw, Clock, Heart, Play, Volume2, Check, CheckSquare, Square, Zap, Wifi, Activity } from 'lucide-react';
 import { 
   searchTracks, 
-  addTrackToPlaylist, 
-  removeTrackFromPlaylist,
+  addTrackToWishlist,
+  removeTrackFromWishlist,
   getSelectedPlaylist,
-  getPlaylistTracks,
+  loadUserMusicWishlist,
   isSpotifyConnected,
   getCurrentUser,
-  subscribeToPlaylistUpdates,
-  bulkRemoveTracksFromPlaylist,
-  getCurrentSnapshotId,
-  getPendingOperationsCount
-} from '../services/spotifyService';
+  getAuthorizationUrl
+} from '../services/databaseSpotifyService';
 import { SpotifyTrack } from '../types';
 
 interface MusicWishlistProps {
@@ -23,7 +20,7 @@ export const MusicWishlist: React.FC<MusicWishlistProps> = ({ isDarkMode }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SpotifyTrack[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [playlistTracks, setPlaylistTracks] = useState<SpotifyApi.PlaylistTrackObject[]>([]);
+  const [wishlistTracks, setWishlistTracks] = useState<SpotifyTrack[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSpotifyAvailable, setIsSpotifyAvailable] = useState(false);

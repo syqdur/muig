@@ -70,7 +70,7 @@ export const HomePage: React.FC = () => {
           {/* Demo Button */}
           <div className="flex justify-center mb-16">
             <button
-              onClick={() => setShowTestUserSetup(true)}
+              onClick={() => navigate('/demo')}
               className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center gap-2"
             >
               <Play className="w-5 h-5" />

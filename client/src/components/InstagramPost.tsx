@@ -241,7 +241,7 @@ export const InstagramPost: React.FC<InstagramPostProps> = ({
                 <div className={`mt-4 px-3 py-1 rounded-full text-xs transition-colors duration-300 ${
                   isDarkMode ? 'bg-orange-600 text-white' : 'bg-orange-100 text-orange-800'
                 }`}>
-                  {item.type === 'video' ? '🎥 Video' : '📷 Bild'}
+                  {item.type === 'video' ? '🎥 Video' : item.type === 'note' ? '📝 Notiz' : '📷 Bild'}
                 </div>
               </div>
             ) : (
@@ -277,23 +277,6 @@ export const InstagramPost: React.FC<InstagramPostProps> = ({
               isDarkMode ? 'text-gray-300' : 'text-gray-700'
             }`} />
           </div>
-        </div>
-
-        {/* Likes */}
-        <div className="flex items-center gap-4 mb-3">
-          <button 
-            onClick={() => onToggleLike(item.id)}
-            className={`flex items-center gap-2 transition-colors ${
-              isLiked ? 'text-red-500' : isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}
-          >
-            <Heart 
-              className={`w-6 h-6 transition-colors ${isLiked ? 'text-red-500 fill-red-500' : isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} 
-            />
-          </button>
-          <MessageCircle className={`w-6 h-6 transition-colors duration-300 ${
-            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-          }`} />
         </div>
 
         <div className="mb-2">

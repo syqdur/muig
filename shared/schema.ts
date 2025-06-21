@@ -26,22 +26,27 @@ export const userProfiles = pgTable("user_profiles", {
 
 // Media items for each user's gallery
 export const mediaItems = pgTable("media_items", {
-  id: serial("id").primaryKey(),
+  id: text("id").primaryKey(), // Changed to text to support longer IDs
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   firebaseId: text("firebase_id"), // Reference to Firebase storage
   type: text("type").notNull(), // 'image', 'video', 'note'
   url: text("url"),
   fileName: text("file_name"),
   uploadedBy: text("uploaded_by").notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
   text: text("text"), // For notes
+  noteText: text("note_text"), // For note content
+  isUnavailable: boolean("is_unavailable").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Comments on media items
 export const comments = pgTable("comments", {
   id: serial("id").primaryKey(),
-  mediaId: integer("media_id").notNull().references(() => mediaItems.id, { onDelete: "cascade" }),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  mediaId: text("media_id").notNull().references(() => mediaItems.id, { onDelete: "cascade" }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  deviceId: text("device_id"), // For anonymous users
+  userName: text("user_name").notNull(), // Display name
   text: text("text").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -49,8 +54,10 @@ export const comments = pgTable("comments", {
 // Likes on media items
 export const likes = pgTable("likes", {
   id: serial("id").primaryKey(),
-  mediaId: integer("media_id").notNull().references(() => mediaItems.id, { onDelete: "cascade" }),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  mediaId: text("media_id").notNull().references(() => mediaItems.id, { onDelete: "cascade" }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  deviceId: text("device_id"), // For anonymous users
+  userName: text("user_name"), // Display name for reference
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -211,8 +218,9 @@ export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
 });
 
 export const insertMediaItemSchema = createInsertSchema(mediaItems).omit({
-  id: true,
   createdAt: true,
+}).extend({
+  id: z.string().optional(), // Allow optional ID for creation
 });
 
 export const insertCommentSchema = createInsertSchema(comments).omit({

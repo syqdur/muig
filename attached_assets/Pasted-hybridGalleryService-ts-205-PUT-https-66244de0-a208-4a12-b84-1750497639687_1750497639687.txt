@@ -1,0 +1,49 @@
+hybridGalleryService.ts:205 
+            
+            
+           PUT https://66244de0-a208-4a12-b846-180a47c4b8e1-00-30l51m6i1ghtr.picard.replit.dev/api/media/1750497415701-10mno3o6g 500 (Internal Server Error)
+window.fetch @ Network.js:219
+editMediaNote @ hybridGalleryService.ts:205
+handleEditNote @ UserGallery.tsx:222
+handleEditNote @ NotePost.tsx:74
+callCallback2 @ chunk-EJTTOCY5.js?v=1979b0ec:3674
+invokeGuardedCallbackDev @ chunk-EJTTOCY5.js?v=1979b0ec:3699
+invokeGuardedCallback @ chunk-EJTTOCY5.js?v=1979b0ec:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-EJTTOCY5.js?v=1979b0ec:3736
+executeDispatch @ chunk-EJTTOCY5.js?v=1979b0ec:7014
+processDispatchQueueItemsInOrder @ chunk-EJTTOCY5.js?v=1979b0ec:7034
+processDispatchQueue @ chunk-EJTTOCY5.js?v=1979b0ec:7043
+dispatchEventsForPlugins @ chunk-EJTTOCY5.js?v=1979b0ec:7051
+(anonymous) @ chunk-EJTTOCY5.js?v=1979b0ec:7174
+batchedUpdates$1 @ chunk-EJTTOCY5.js?v=1979b0ec:18913
+batchedUpdates @ chunk-EJTTOCY5.js?v=1979b0ec:3579
+dispatchEventForPluginEventSystem @ chunk-EJTTOCY5.js?v=1979b0ec:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-EJTTOCY5.js?v=1979b0ec:5478
+dispatchEvent @ chunk-EJTTOCY5.js?v=1979b0ec:5472
+dispatchDiscreteEvent @ chunk-EJTTOCY5.js?v=1979b0ec:5449
+Console.js:61 Database failed for note edit: Error: Database request failed
+    at editMediaNote (hybridGalleryService.ts:217:13)
+    at async handleEditNote (UserGallery.tsx:222:7)
+Mt.forEach.n.<computed> @ Console.js:61
+editMediaNote @ hybridGalleryService.ts:230
+await in editMediaNote
+handleEditNote @ UserGallery.tsx:222
+handleEditNote @ NotePost.tsx:74
+callCallback2 @ chunk-EJTTOCY5.js?v=1979b0ec:3674
+invokeGuardedCallbackDev @ chunk-EJTTOCY5.js?v=1979b0ec:3699
+invokeGuardedCallback @ chunk-EJTTOCY5.js?v=1979b0ec:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-EJTTOCY5.js?v=1979b0ec:3736
+executeDispatch @ chunk-EJTTOCY5.js?v=1979b0ec:7014
+processDispatchQueueItemsInOrder @ chunk-EJTTOCY5.js?v=1979b0ec:7034
+processDispatchQueue @ chunk-EJTTOCY5.js?v=1979b0ec:7043
+dispatchEventsForPlugins @ chunk-EJTTOCY5.js?v=1979b0ec:7051
+(anonymous) @ chunk-EJTTOCY5.js?v=1979b0ec:7174
+batchedUpdates$1 @ chunk-EJTTOCY5.js?v=1979b0ec:18913
+batchedUpdates @ chunk-EJTTOCY5.js?v=1979b0ec:3579
+dispatchEventForPluginEventSystem @ chunk-EJTTOCY5.js?v=1979b0ec:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-EJTTOCY5.js?v=1979b0ec:5478
+dispatchEvent @ chunk-EJTTOCY5.js?v=1979b0ec:5472
+dispatchDiscreteEvent @ chunk-EJTTOCY5.js?v=1979b0ec:5449
+Console.js:61 Edit note error: Error: Database request failed
+    at editMediaNote (hybridGalleryService.ts:217:13)
+    at async handleEditNote (UserGallery.tsx:222:7)

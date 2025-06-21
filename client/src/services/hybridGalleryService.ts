@@ -143,38 +143,120 @@ export const addUserNote = async (
   userName: string,
   deviceId: string
 ): Promise<void> => {
-  const mediaItems = getFromStorage<MediaItem>(STORAGE_KEYS.MEDIA(userId));
-  const id = generateId();
-  
-  const mediaItem: MediaItem = {
-    id,
-    name: 'Note',
-    url: '',
-    uploadedBy: userName,
-    uploadedAt: new Date().toISOString(),
-    deviceId,
-    type: 'note',
-    noteText,
-    text: noteText,
-    userId,
-    createdAt: new Date().toISOString()
-  };
-  
-  mediaItems.push(mediaItem);
-  saveToStorage(STORAGE_KEYS.MEDIA(userId), mediaItems);
-  
-  // Trigger storage event
-  window.dispatchEvent(new StorageEvent('storage', {
-    key: STORAGE_KEYS.MEDIA(userId),
-    newValue: JSON.stringify(mediaItems)
-  }));
+  try {
+    // Try database first
+    const response = await fetch(`/api/users/${userId}/notes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: noteText,
+        uploadedBy: userName
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Database request failed');
+    }
+
+    const note = await response.json();
+    console.log('Note created:', note);
+
+  } catch (error) {
+    console.error('Database failed, using localStorage:', error);
+    
+    // Fallback to localStorage
+    const mediaItems = getFromStorage<MediaItem>(STORAGE_KEYS.MEDIA(userId));
+    const id = generateId();
+    
+    const mediaItem: MediaItem = {
+      id,
+      name: 'Note',
+      url: '',
+      uploadedBy: userName,
+      uploadedAt: new Date().toISOString(),
+      deviceId,
+      type: 'note',
+      noteText,
+      text: noteText,
+      userId,
+      createdAt: new Date().toISOString()
+    };
+    
+    mediaItems.push(mediaItem);
+    saveToStorage(STORAGE_KEYS.MEDIA(userId), mediaItems);
+    
+    // Trigger storage event
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: STORAGE_KEYS.MEDIA(userId),
+      newValue: JSON.stringify(mediaItems)
+    }));
+  }
+};
+
+// Edit note function
+export const editMediaNote = async (
+  mediaId: string,
+  newText: string
+): Promise<void> => {
+  try {
+    // Try database first
+    const response = await fetch(`/api/media/${mediaId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: newText,
+        noteText: newText
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Database request failed');
+    }
+
+    const updatedItem = await response.json();
+    console.log('Note updated:', updatedItem);
+
+    // Trigger a refresh by firing a storage event
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'media_refresh',
+      newValue: JSON.stringify(updatedItem)
+    }));
+
+  } catch (error) {
+    console.error('Database failed for note edit:', error);
+    throw error; // Re-throw to show error to user
+  }
 };
 
 // Gallery loading with real-time updates
 export const loadUserMediaItems = (userId: string, callback: (items: MediaItem[]) => void) => {
-  const loadData = () => {
+  const loadData = async () => {
+    try {
+      // Try to load from database first
+      const response = await fetch(`/api/users/${userId}/media`);
+      if (response.ok) {
+        const dbItems = await response.json();
+        // Convert database items to frontend format
+        const convertedItems = dbItems.map((item: any) => ({
+          ...item,
+          id: item.id.toString(), // Convert to string for frontend
+          uploadedAt: item.uploadedAt || item.createdAt,
+          noteText: item.noteText || item.text
+        }));
+        convertedItems.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+        callback(convertedItems);
+        return;
+      }
+    } catch (error) {
+      console.log('Database failed, using localStorage:', error);
+    }
+    
+    // Fallback to localStorage
     const items = getFromStorage<MediaItem>(STORAGE_KEYS.MEDIA(userId));
-    // Sort by upload date, newest first
     items.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
     callback(items);
   };
@@ -182,7 +264,7 @@ export const loadUserMediaItems = (userId: string, callback: (items: MediaItem[]
   loadData();
   
   const handleStorageChange = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEYS.MEDIA(userId)) {
+    if (e.key === STORAGE_KEYS.MEDIA(userId) || e.key === 'media_refresh') {
       loadData();
     }
   };

@@ -36,8 +36,9 @@ export const NotePost: React.FC<NotePostProps> = ({
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [editNoteText, setEditNoteText] = useState(item.noteText || '');
 
-  const isLiked = likes.some(like => like.userName === userName);
-  const likeCount = likes.length;
+  const currentDeviceId = typeof window !== 'undefined' ? (window as any).deviceId || 'demo-device' : 'demo-device';
+  const isLiked = likes?.some(like => like.deviceId === currentDeviceId) || false;
+  const likeCount = likes?.length || 0;
 
   // Check if current user can delete this post
   const canDeletePost = isAdmin || item.uploadedBy === userName;

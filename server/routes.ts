@@ -114,9 +114,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Media items routes
   app.get("/api/users/:id/media", async (req, res) => {
     try {
-      const mediaItems = await storage.getUserMediaItems(parseInt(req.params.id));
+      const userIdParam = req.params.id;
+      let userId = 1; // Default user for demo
+      
+      // If it's not demo-user and is a valid number, use that
+      if (userIdParam !== 'demo-user') {
+        const parsedId = parseInt(userIdParam);
+        if (!isNaN(parsedId)) {
+          userId = parsedId;
+        }
+      }
+      
+      const mediaItems = await storage.getUserMediaItems(userId);
       res.json(mediaItems);
     } catch (error) {
+      console.error("Media fetch error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/users/:id/media", async (req, res) => {
+    try {
+      const userIdParam = req.params.id;
+      let userId = 1; // Default user for demo
+      
+      // If it's not demo-user and is a valid number, use that
+      if (userIdParam !== 'demo-user') {
+        const parsedId = parseInt(userIdParam);
+        if (!isNaN(parsedId)) {
+          userId = parsedId;
+        }
+      }
+      
+      const mediaItems = await storage.getUserMediaItems(userId);
+      res.json(mediaItems);
+    } catch (error) {
+      console.error("Error loading media items:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -191,6 +224,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(500).json({ message: "Upload failed" });
       }
     });
+  });
+
+  // Note creation endpoint
+  app.post("/api/users/:id/notes", async (req, res) => {
+    try {
+      // For demo users, use a fixed user ID
+      const userIdParam = req.params.id;
+      let userId = 1; // Default user for demo
+      
+      // If it's not demo-user and is a valid number, use that
+      if (userIdParam !== 'demo-user') {
+        const parsedId = parseInt(userIdParam);
+        if (!isNaN(parsedId)) {
+          userId = parsedId;
+        }
+      }
+      
+      const { text, uploadedBy } = req.body;
+      
+      const noteData = {
+        userId,
+        type: 'note' as const,
+        text,
+        noteText: text,
+        uploadedBy: uploadedBy || 'Unknown'
+      };
+      
+      const note = await storage.createMediaItem(noteData);
+      
+      // Broadcast the update
+      if (app.locals.broadcast) {
+        app.locals.broadcast({
+          type: 'MEDIA_CREATED',
+          data: note
+        });
+      }
+      
+      res.status(201).json(note);
+    } catch (error) {
+      console.error("Note creation error:", error);
+      res.status(500).json({ message: "Failed to create note" });
+    }
+  });
+
+  app.put("/api/media/:id", async (req, res) => {
+    try {
+      const mediaId = req.params.id; // Use full ID as string
+      const updateData = req.body;
+      
+      const updatedItem = await storage.updateMediaItem(mediaId, updateData);
+      
+      if (!updatedItem) {
+        return res.status(404).json({ message: "Media item not found" });
+      }
+      
+      // Broadcast the update
+      if (app.locals.broadcast) {
+        app.locals.broadcast({
+          type: 'MEDIA_UPDATED',
+          data: updatedItem
+        });
+      }
+      
+      res.json(updatedItem);
+    } catch (error) {
+      console.error("Media update error:", error);
+      res.status(500).json({ message: "Failed to update media item" });
+    }
   });
 
   app.delete("/api/media/:id", async (req, res) => {

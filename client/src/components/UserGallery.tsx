@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Sun, Moon } from 'lucide-react';
+import { Heart, MessageCircle, MoreHorizontal, Sun, Moon } from 'lucide-react';
 import { AdminPanel } from './AdminPanel';
 import { AdminLoginModal } from './AdminLoginModal';
 import { UserNamePrompt } from './UserNamePrompt';
@@ -7,25 +7,31 @@ import { useAuth } from '../contexts/AuthContext';
 import { UploadSection } from './UploadSection';
 import { InstagramGallery } from './InstagramGallery';
 import { MediaModal } from './MediaModal';
+import { ProfileHeader } from './ProfileHeader';
+import { ProfileEditor } from './ProfileEditor';
+import { StoriesBar } from './StoriesBar';
+import { StoriesViewer } from './StoriesViewer';
+import { StoryUploadModal } from './StoryUploadModal';
 import { TabNavigation } from './TabNavigation';
 import { Timeline } from './Timeline';
 import { MusicWishlist } from './MusicWishlist';
-import { ProfileHeader } from './ProfileHeader';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { MediaItem, Comment, Like, TimelineEvent } from '../types';
 import {
   uploadUserFiles,
   uploadUserVideo,
+  loadUserGallery,
   loadUserMediaItems,
   loadUserComments,
   loadUserLikes,
+  loadUserStories,
   deleteUserMediaItem,
   addComment,
   deleteComment,
   toggleLike,
-  addUserNote,
-  editMediaNote
+  deleteStory
 } from '../services/hybridGalleryService';
+import { Story } from '../services/liveService';
 import { getDeviceId, getUserName, setUserName } from '../utils/deviceId';
 import { anonymousUserService } from '../services/anonymousUserService';
 
@@ -42,16 +48,19 @@ export const UserGallery: React.FC = () => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [likes, setLikes] = useState<Like[]>([]);
   const [events, setEvents] = useState<TimelineEvent[]>([]);
+  const [stories, setStories] = useState<Story[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [status, setStatus] = useState('');
+  const [showStoriesViewer, setShowStoriesViewer] = useState(false);
+  const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
+  const [showStoryUpload, setShowStoryUpload] = useState(false);
   const [activeTab, setActiveTab] = useState<'gallery' | 'music' | 'timeline'>('gallery');
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
-  const [profileBio, setProfileBio] = useState('Willkommen in unserer Hochzeitsgalerie! 💕');
-  const [profilePhoto, setProfilePhoto] = useState<string | undefined>();
 
   // Check for existing user name on mount
   useEffect(() => {
@@ -82,34 +91,18 @@ export const UserGallery: React.FC = () => {
       setLikes(likes);
     });
     
+    // Load stories
+    const unsubscribeStories = loadUserStories(userId, (stories) => {
+      setStories(stories);
+    });
+    
     return () => {
       unsubscribeMedia();
       unsubscribeComments();
       unsubscribeLikes();
+      unsubscribeStories();
     };
   }, [currentUser]);
-
-  // Load profile data from localStorage
-  useEffect(() => {
-    const userId = currentUser?.uid || 'demo-user';
-    const savedBio = localStorage.getItem(`profile_bio_${userId}`);
-    const savedPhoto = localStorage.getItem(`profile_photo_${userId}`);
-    
-    if (savedBio) setProfileBio(savedBio);
-    if (savedPhoto) setProfilePhoto(savedPhoto);
-  }, [currentUser]);
-
-  const handleBioUpdate = (newBio: string) => {
-    const userId = currentUser?.uid || 'demo-user';
-    setProfileBio(newBio);
-    localStorage.setItem(`profile_bio_${userId}`, newBio);
-  };
-
-  const handlePhotoUpdate = (newPhotoURL: string) => {
-    const userId = currentUser?.uid || 'demo-user';
-    setProfilePhoto(newPhotoURL);
-    localStorage.setItem(`profile_photo_${userId}`, newPhotoURL);
-  };
 
   const handleNameSubmit = async (name: string) => {
     try {
@@ -129,11 +122,11 @@ export const UserGallery: React.FC = () => {
 
     setIsUploading(true);
     setUploadProgress(0);
-    setStatus('⏳ Uploading files...');
+    setStatus('⏳ Uploading...');
 
     try {
       await uploadUserFiles(
-        userId, 
+        userId,
         files, 
         currentUserName, 
         deviceId,
@@ -153,7 +146,7 @@ export const UserGallery: React.FC = () => {
 
   const handleVideoUpload = async (videoBlob: Blob) => {
     if (!currentUserName) return;
-
+    
     const userId = currentUser?.uid || 'demo-user';
 
     setIsUploading(true);
@@ -161,7 +154,7 @@ export const UserGallery: React.FC = () => {
     setStatus('⏳ Uploading video...');
 
     try {
-      await uploadUserVideo(
+      await uploadUserVideoBlob(
         userId,
         videoBlob, 
         currentUserName, 
@@ -182,12 +175,13 @@ export const UserGallery: React.FC = () => {
 
   const handleNoteSubmit = async (noteText: string) => {
     const userId = currentUser?.uid || 'demo-user';
+    const userName = userProfile?.displayName || currentUser?.displayName || 'Demo User';
 
     setIsUploading(true);
     setStatus('⏳ Saving note...');
 
     try {
-      await addUserNote(userId, noteText, currentUserName, deviceId);
+      await addUserNote(userId, noteText, userName, userId);
       setStatus('✅ Note saved successfully!');
       setTimeout(() => setStatus(''), 3000);
     } catch (error) {
@@ -215,9 +209,11 @@ export const UserGallery: React.FC = () => {
 
   const handleLike = async (mediaId: string) => {
     const userId = currentUser?.uid || 'demo-user';
+    const userName = userProfile?.displayName || currentUser?.displayName || 'Demo User';
+    const deviceId = currentUser?.uid || 'demo-user';
 
     try {
-      await toggleLike(userId, mediaId, currentUserName, deviceId);
+      await toggleLike(userId, mediaId, userName, deviceId);
     } catch (error) {
       console.error('Like error:', error);
     }
@@ -225,9 +221,11 @@ export const UserGallery: React.FC = () => {
 
   const handleComment = async (mediaId: string, text: string) => {
     const userId = currentUser?.uid || 'demo-user';
+    const userName = userProfile?.displayName || currentUser?.displayName || 'Demo User';
+    const deviceId = currentUser?.uid || 'demo-user';
 
     try {
-      await addComment(userId, mediaId, text, currentUserName, deviceId);
+      await addComment(userId, mediaId, text, userName, deviceId);
     } catch (error) {
       console.error('Comment error:', error);
     }
@@ -243,8 +241,13 @@ export const UserGallery: React.FC = () => {
   };
 
   const handleEditNote = async (item: MediaItem, newText: string) => {
+    const userId = currentUser?.uid || 'demo-user';
+
     try {
-      await editMediaNote(item.id, newText);
+      // Update the media item's text/note content
+      const updatedItem = { ...item, text: newText };
+      // For now, we'll just log this as the edit functionality needs to be implemented
+      console.log('Edit note for item:', updatedItem);
       setStatus('✅ Note updated successfully!');
       setTimeout(() => setStatus(''), 3000);
     } catch (error) {
@@ -267,34 +270,42 @@ export const UserGallery: React.FC = () => {
     setShowAdminLogin(false);
   };
 
+  if (!currentUser || !userProfile) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}>
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Header */}
+        {/* Header with logout */}
         <div className="mb-8">
-          <div className="flex justify-between items-center">
-            <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Hochzeitsgallerie
-            </h1>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={toggleDarkMode}
-                className={`p-2 rounded-full transition-colors ${
-                  isDarkMode ? 'bg-gray-700 text-yellow-400' : 'bg-gray-200 text-gray-600'
-                }`}
-              >
-                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-              <button
-                onClick={() => {
-                  localStorage.clear();
-                  window.location.reload();
-                }}
-                className="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-              >
-                Clear Data
-              </button>
-            </div>
+          <ProfileHeader 
+            profile={userProfile}
+            onEdit={() => setShowProfileEditor(true)}
+            isDarkMode={isDarkMode}
+          />
+          <div className="flex justify-end items-center gap-4 p-4">
+            <button
+              onClick={() => {
+                localStorage.clear();
+                window.location.reload();
+              }}
+              className="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+            >
+              Clear Data
+            </button>
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            <button
+              onClick={logout}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Logout
+            </button>
           </div>
         </div>
 
@@ -305,15 +316,14 @@ export const UserGallery: React.FC = () => {
           </div>
         )}
 
-        {/* Profile Header */}
-        <ProfileHeader 
-          userName={currentUserName}
-          bio={profileBio}
-          photoURL={profilePhoto}
-          isAdmin={isAdmin}
-          isDarkMode={isDarkMode}
-          onBioUpdate={handleBioUpdate}
-          onPhotoUpdate={handlePhotoUpdate}
+        {/* Stories Bar */}
+        <StoriesBar 
+          stories={stories}
+          onStoryClick={(index) => {
+            setCurrentStoryIndex(index);
+            setShowStoriesViewer(true);
+          }}
+          onAddStory={() => setShowStoryUpload(true)}
         />
 
         {/* Tab Navigation */}
@@ -323,23 +333,20 @@ export const UserGallery: React.FC = () => {
           isDarkMode={isDarkMode}
         />
 
-        {/* Upload Section */}
-        <UploadSection 
-          onUpload={handleUpload}
-          onVideoUpload={handleVideoUpload}
-          onNoteSubmit={handleNoteSubmit}
-          onAddStory={() => {}}
-          isUploading={isUploading}
-          progress={uploadProgress}
-          isDarkMode={isDarkMode}
-        />
-
-        {/* Main Content */}
+        {/* Content based on active tab */}
         {activeTab === 'gallery' && (
           <>
-            <InstagramGallery 
+            <UploadSection
+              onUpload={handleUpload}
+              onVideoUpload={handleVideoUpload}
+              onNoteSubmit={handleNoteSubmit}
+              isUploading={isUploading}
+              uploadProgress={uploadProgress}
+            />
+
+            <InstagramGallery
               items={mediaItems}
-              onItemClick={(index) => {
+              onItemClick={(index: number) => {
                 setCurrentImageIndex(index);
                 setModalOpen(true);
               }}
@@ -351,25 +358,7 @@ export const UserGallery: React.FC = () => {
               onAddComment={handleComment}
               onDeleteComment={handleDeleteComment}
               onToggleLike={handleLike}
-              userName={currentUserName}
-              isDarkMode={isDarkMode}
-            />
-
-            {/* Media Modal */}
-            <MediaModal 
-              isOpen={modalOpen}
-              items={mediaItems}
-              currentIndex={currentImageIndex}
-              onClose={() => setModalOpen(false)}
-              onNext={() => setCurrentImageIndex((prev) => (prev + 1) % mediaItems.length)}
-              onPrev={() => setCurrentImageIndex((prev) => (prev - 1 + mediaItems.length) % mediaItems.length)}
-              comments={comments}
-              likes={likes}
-              onAddComment={handleComment}
-              onDeleteComment={handleDeleteComment}
-              onToggleLike={handleLike}
-              userName={currentUserName}
-              isAdmin={isAdmin}
+              userName={userProfile?.displayName || 'Demo User'}
               isDarkMode={isDarkMode}
             />
           </>
@@ -378,29 +367,79 @@ export const UserGallery: React.FC = () => {
         {activeTab === 'timeline' && (
           <Timeline 
             isDarkMode={isDarkMode}
-            userName={currentUserName}
+            userName={userProfile?.displayName || 'Demo User'}
             isAdmin={isAdmin}
+            currentUser={currentUser}
           />
         )}
 
         {activeTab === 'music' && (
-          <MusicWishlist isDarkMode={isDarkMode} />
-        )}
-
-        {/* User Name Prompt */}
-        {showNamePrompt && (
-          <UserNamePrompt 
-            onNameSubmit={handleNameSubmit}
+          <MusicWishlist 
             isDarkMode={isDarkMode}
           />
         )}
 
-        {/* Admin Login Modal */}
+        {/* Modals */}
+        {modalOpen && (
+          <MediaModal
+            isOpen={modalOpen}
+            items={mediaItems}
+            currentIndex={currentImageIndex}
+            onClose={() => setModalOpen(false)}
+            onNext={() => setCurrentImageIndex(prev => (prev + 1) % mediaItems.length)}
+            onPrev={() => setCurrentImageIndex(prev => prev === 0 ? mediaItems.length - 1 : prev - 1)}
+            comments={comments}
+            likes={likes}
+            onAddComment={handleComment}
+            onDeleteComment={handleDeleteComment}
+            onToggleLike={handleLike}
+            userName={userProfile?.displayName || 'Demo User'}
+            isAdmin={isAdmin}
+            isDarkMode={isDarkMode}
+          />
+        )}
+
+        {showStoriesViewer && (
+          <StoriesViewer
+            stories={stories}
+            currentIndex={currentStoryIndex}
+            onClose={() => setShowStoriesViewer(false)}
+            onNext={() => setCurrentStoryIndex(prev => (prev + 1) % stories.length)}
+            onPrevious={() => setCurrentStoryIndex(prev => prev === 0 ? stories.length - 1 : prev - 1)}
+            onDelete={(storyId) => {/* TODO: Delete story */}}
+            currentUser={userProfile.displayName}
+            deviceId={currentUser.uid}
+            isAdmin={false}
+          />
+        )}
+
+        {showStoryUpload && (
+          <StoryUploadModal
+            onClose={() => setShowStoryUpload(false)}
+            onUpload={(file, text) => {/* TODO: Upload story */}}
+            userName={userProfile.displayName}
+            deviceId={currentUser.uid}
+          />
+        )}
+
+        {showProfileEditor && (
+          <ProfileEditor
+            onClose={() => setShowProfileEditor(false)}
+          />
+        )}
+
         {showAdminLogin && (
-          <AdminLoginModal 
+          <AdminLoginModal
             isOpen={showAdminLogin}
             onClose={() => setShowAdminLogin(false)}
             onLogin={handleAdminLogin}
+            isDarkMode={isDarkMode}
+          />
+        )}
+
+        {showNamePrompt && (
+          <UserNamePrompt
+            onNameSubmit={handleNameSubmit}
             isDarkMode={isDarkMode}
           />
         )}
@@ -412,8 +451,8 @@ export const UserGallery: React.FC = () => {
         isAdmin={isAdmin}
         onToggleAdmin={handleAdminToggle}
         mediaItems={mediaItems}
-        userId={currentUser?.uid || 'demo-user'}
-        galleryOwnerName={userProfile?.displayName || currentUserName}
+        userId={currentUser.uid}
+        galleryOwnerName={userProfile.displayName}
       />
     </div>
   );

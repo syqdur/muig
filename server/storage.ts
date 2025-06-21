@@ -17,20 +17,20 @@ export interface IStorage {
   // Media items
   getUserMediaItems(userId: number): Promise<MediaItem[]>;
   createMediaItem(item: InsertMediaItem): Promise<MediaItem>;
-  deleteMediaItem(id: string): Promise<void>;
-  updateMediaItem(id: string, item: Partial<InsertMediaItem>): Promise<MediaItem | undefined>;
+  deleteMediaItem(id: number): Promise<void>;
+  updateMediaItem(id: number, item: Partial<InsertMediaItem>): Promise<MediaItem | undefined>;
   
   // Comments
-  getMediaComments(mediaId: string): Promise<Comment[]>;
+  getMediaComments(mediaId: number): Promise<Comment[]>;
   getUserComments(userId: number): Promise<Comment[]>;
   createComment(comment: InsertComment): Promise<Comment>;
   deleteComment(id: number): Promise<void>;
   
   // Likes
-  getMediaLikes(mediaId: string): Promise<Like[]>;
+  getMediaLikes(mediaId: number): Promise<Like[]>;
   getUserLikes(userId: number): Promise<Like[]>;
   createLike(like: InsertLike): Promise<Like>;
-  deleteLike(mediaId: string, userId: number): Promise<void>;
+  deleteLike(mediaId: number, userId: number): Promise<void>;
   
   // Timeline events
   getUserTimelineEvents(userId: number): Promise<TimelineEvent[]>;
@@ -116,23 +116,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMediaItem(item: InsertMediaItem): Promise<MediaItem> {
-    // Generate a unique ID if not provided
-    const itemWithId = {
-      ...item,
-      id: item.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    };
     const [newItem] = await db
       .insert(mediaItems)
-      .values(itemWithId)
+      .values(item)
       .returning();
     return newItem;
   }
 
-  async deleteMediaItem(id: string): Promise<void> {
+  async deleteMediaItem(id: number): Promise<void> {
     await db.delete(mediaItems).where(eq(mediaItems.id, id));
   }
 
-  async updateMediaItem(id: string, item: Partial<InsertMediaItem>): Promise<MediaItem | undefined> {
+  async updateMediaItem(id: number, item: Partial<InsertMediaItem>): Promise<MediaItem | undefined> {
     const [updatedItem] = await db
       .update(mediaItems)
       .set(item)
@@ -142,7 +137,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Comments
-  async getMediaComments(mediaId: string): Promise<Comment[]> {
+  async getMediaComments(mediaId: number): Promise<Comment[]> {
     return await db.select().from(comments).where(eq(comments.mediaId, mediaId)).orderBy(desc(comments.createdAt));
   }
 
@@ -163,7 +158,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Likes
-  async getMediaLikes(mediaId: string): Promise<Like[]> {
+  async getMediaLikes(mediaId: number): Promise<Like[]> {
     return await db.select().from(likes).where(eq(likes.mediaId, mediaId));
   }
 
@@ -179,7 +174,7 @@ export class DatabaseStorage implements IStorage {
     return newLike;
   }
 
-  async deleteLike(mediaId: string, userId: number): Promise<void> {
+  async deleteLike(mediaId: number, userId: number): Promise<void> {
     await db.delete(likes).where(and(eq(likes.mediaId, mediaId), eq(likes.userId, userId)));
   }
 

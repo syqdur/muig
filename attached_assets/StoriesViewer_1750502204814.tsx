@@ -1,15 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, Pause, Play, Trash2, Eye } from 'lucide-react';
-
-// Use the existing Story type from the gallery service
-interface Story {
-  id: string;
-  mediaUrl: string;
-  mediaType: 'image' | 'video';
-  userName: string;
-  createdAt: string;
-  views: string[];
-}
+import { Story } from '../services/liveService';
 
 interface StoriesViewerProps {
   isOpen: boolean;
@@ -43,23 +34,13 @@ export const StoriesViewer: React.FC<StoriesViewerProps> = ({
   const STORY_DURATION = 5000; // 5 seconds per story
 
   // Check if current user can delete this story
-  const canDeleteStory = currentStory && (isAdmin || currentStory.userName === currentUser);
-  
-  console.log(`🔍 Delete permissions check:`, {
-    currentUser,
-    storyUser: currentStory?.userName,
-    isAdmin,
-    canDeleteStory,
-    currentStory: currentStory?.id
-  });
+  const canDeleteStory = isAdmin || (currentStory && currentStory.userName === currentUser);
 
   useEffect(() => {
     if (!isOpen || !currentStory) return;
 
-    // Mark story as viewed (use setTimeout to avoid setState during render)
-    setTimeout(() => {
-      onStoryViewed(currentStory.id);
-    }, 0);
+    // Mark story as viewed
+    onStoryViewed(currentStory.id);
     setIsLoading(true);
     setProgress(0);
 
@@ -100,7 +81,7 @@ export const StoriesViewer: React.FC<StoriesViewerProps> = ({
     return () => clearInterval(interval);
   }, [isOpen, isPaused, isLoading, currentIndex, stories.length, onClose]);
 
-  // Keyboard navigation
+  // 🎯 NEW: Keyboard navigation
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (!isOpen) return;
@@ -148,34 +129,23 @@ export const StoriesViewer: React.FC<StoriesViewerProps> = ({
     if (!currentStory || !canDeleteStory) return;
 
     const storyType = currentStory.mediaType === 'video' ? 'Video-Story' : 'Foto-Story';
-    const userName = currentStory.userName;
-    const isOwnStory = userName === currentUser;
-    
-    let confirmMessage;
-    if (isAdmin && !isOwnStory) {
-      confirmMessage = `🗑️ Admin-Löschung\n\n${storyType} von "${userName}" wirklich löschen?\n\n⚠️ Diese Aktion kann nicht rückgängig gemacht werden.`;
-    } else {
-      confirmMessage = `🗑️ Story löschen\n\nDeine ${storyType} wirklich löschen?\n\n⚠️ Diese Aktion kann nicht rückgängig gemacht werden.`;
-    }
+    const confirmMessage = isAdmin 
+      ? `${storyType} von ${currentStory.userName} wirklich löschen?`
+      : `Deine ${storyType} wirklich löschen?`;
 
     if (window.confirm(confirmMessage)) {
-      console.log(`🗑️ Deleting story: ${currentStory.id} by ${userName}`);
       onDeleteStory(currentStory.id);
       
-      // Smart navigation after deletion
+      // Move to next story or close if this was the last one
       if (stories.length > 1) {
         if (currentIndex < stories.length - 1) {
           // Stay at current index, next story will shift into this position
-          console.log(`📍 Staying at index ${currentIndex}, next story will appear here`);
         } else {
           // Go to previous story if this was the last one
-          const newIndex = currentIndex - 1;
-          console.log(`📍 Moving to previous story at index ${newIndex}`);
-          setCurrentIndex(newIndex);
+          setCurrentIndex(prev => prev - 1);
         }
       } else {
         // Close viewer if this was the only story
-        console.log(`📍 No more stories, closing viewer`);
         onClose();
       }
     }
@@ -244,6 +214,7 @@ export const StoriesViewer: React.FC<StoriesViewerProps> = ({
           </div>
           <div>
             <span className="text-white font-semibold text-sm">
+              {/* 🎯 NEW: Clear user display */}
               {currentStory.userName}
               {currentStory.userName === currentUser && (
                 <span className="ml-2 text-xs px-2 py-0.5 bg-blue-600 text-white rounded-full">
@@ -260,25 +231,23 @@ export const StoriesViewer: React.FC<StoriesViewerProps> = ({
           {canDeleteStory && (
             <button
               onClick={handleDeleteStory}
-              className="p-2 rounded-full bg-red-600/90 text-white hover:bg-red-600 transition-all duration-200 hover:scale-110 shadow-lg border border-red-400/30"
-              title={isAdmin ? `Story von ${currentStory.userName} löschen` : "Deine Story löschen"}
+              className="p-2 rounded-full bg-red-600/80 text-white hover:bg-red-600 transition-colors"
+              title="Story löschen"
             >
-              <Trash2 className="w-5 h-5" />
+              <Trash2 className="w-4 h-4" />
             </button>
           )}
           <button
             onClick={togglePause}
-            className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all duration-200 hover:scale-110 shadow-lg border border-white/20"
-            title={isPaused ? "Abspielen" : "Pausieren"}
+            className="p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors"
           >
-            {isPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
+            {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
           </button>
           <button
             onClick={onClose}
-            className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all duration-200 hover:scale-110 shadow-lg border border-white/20"
-            title="Schließen"
+            className="p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -309,14 +278,14 @@ export const StoriesViewer: React.FC<StoriesViewerProps> = ({
           />
         )}
 
-        {/* Enhanced Navigation Areas - Always visible */}
+        {/* 🎯 NEW: Enhanced Navigation Areas */}
         <button
           onClick={goToPrevious}
-          className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 transition-all duration-200 hover:scale-110"
+          className="absolute left-0 top-0 w-1/3 h-full flex items-center justify-start pl-4 opacity-0 hover:opacity-100 transition-opacity group"
           disabled={currentIndex === 0}
         >
           {currentIndex > 0 && (
-            <div className="bg-black/70 backdrop-blur-sm rounded-full p-3 border border-white/20 shadow-lg">
+            <div className="bg-black/50 rounded-full p-2 group-hover:bg-black/70 transition-colors">
               <ChevronLeft className="w-6 h-6 text-white" />
             </div>
           )}
@@ -324,9 +293,9 @@ export const StoriesViewer: React.FC<StoriesViewerProps> = ({
 
         <button
           onClick={goToNext}
-          className="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 transition-all duration-200 hover:scale-110"
+          className="absolute right-0 top-0 w-1/3 h-full flex items-center justify-end pr-4 opacity-0 hover:opacity-100 transition-opacity group"
         >
-          <div className="bg-black/70 backdrop-blur-sm rounded-full p-3 border border-white/20 shadow-lg">
+          <div className="bg-black/50 rounded-full p-2 group-hover:bg-black/70 transition-colors">
             <ChevronRight className="w-6 h-6 text-white" />
           </div>
         </button>
@@ -349,22 +318,14 @@ export const StoriesViewer: React.FC<StoriesViewerProps> = ({
             <div className="flex items-center gap-2">
               <Eye className="w-4 h-4" />
               <span>
-                {currentStory.views?.length || 0} Aufrufe
+                {currentStory.views.length} Aufrufe
               </span>
             </div>
           </div>
           
-          {/* Enhanced controls hint */}
-          <div className="text-white/60 text-xs mt-2 text-center space-y-1">
-            <div>← → Navigieren • Leertaste Pause • Esc Schließen</div>
-            {canDeleteStory && (
-              <div className="text-red-300">
-                {isAdmin && currentStory.userName !== currentUser 
-                  ? `🛡️ Admin: Story von ${currentStory.userName} löschbar`
-                  : '🗑️ Deine Story - löschbar'
-                }
-              </div>
-            )}
+          {/* 🎯 NEW: Keyboard shortcuts hint */}
+          <div className="text-white/60 text-xs mt-2 text-center">
+            ← → Navigieren • Leertaste Pause • Esc Schließen
           </div>
         </div>
       </div>

@@ -2,19 +2,17 @@ import React, { useState, useRef, useCallback } from 'react';
 import { Video, Square, RotateCcw, Check, X, RotateCw } from 'lucide-react';
 
 interface VideoRecorderProps {
-  isOpen: boolean;
-  onClose: () => void;
   onVideoRecorded: (videoBlob: Blob) => void;
+  onClose: () => void;
   isDarkMode: boolean;
-  maxDuration?: number;
+  maxDuration?: number; // in seconds
 }
 
 export const VideoRecorder: React.FC<VideoRecorderProps> = ({
-  isOpen,
-  onClose,
   onVideoRecorded,
+  onClose,
   isDarkMode,
-  maxDuration = 10
+  maxDuration = 60 // Default 60 seconds, 10 for stories
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedVideo, setRecordedVideo] = useState<string | null>(null);
@@ -30,6 +28,7 @@ export const VideoRecorder: React.FC<VideoRecorderProps> = ({
 
   const startCamera = useCallback(async (requestedFacingMode?: 'user' | 'environment') => {
     try {
+      // Stop existing stream first
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
@@ -54,7 +53,9 @@ export const VideoRecorder: React.FC<VideoRecorderProps> = ({
     } catch (error) {
       console.error('Error accessing camera:', error);
       
+      // If back camera fails, try front camera as fallback
       if (requestedFacingMode === 'environment') {
+        console.log('Back camera failed, trying front camera...');
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
             video: { 
@@ -72,6 +73,7 @@ export const VideoRecorder: React.FC<VideoRecorderProps> = ({
           setHasPermission(true);
           setFacingMode('user');
         } catch (fallbackError) {
+          console.error('Both cameras failed:', fallbackError);
           setHasPermission(false);
         }
       } else {
@@ -81,7 +83,8 @@ export const VideoRecorder: React.FC<VideoRecorderProps> = ({
   }, [facingMode]);
 
   const switchCamera = useCallback(async () => {
-    if (isRecording) return;
+    if (isRecording) return; // Don't allow switching during recording
+    
     const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
     await startCamera(newFacingMode);
   }, [facingMode, isRecording, startCamera]);
@@ -120,13 +123,17 @@ export const VideoRecorder: React.FC<VideoRecorderProps> = ({
     setIsRecording(true);
     setRecordingTime(0);
     
+    // Start timer
     timerRef.current = setInterval(() => {
       setRecordingTime(prev => {
         const newTime = prev + 1;
+        
+        // Auto-stop when max duration reached
         if (newTime >= maxDuration) {
           stopRecording();
           return maxDuration;
         }
+        
         return newTime;
       });
     }, 1000);
@@ -166,10 +173,9 @@ export const VideoRecorder: React.FC<VideoRecorderProps> = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Initialize camera on mount
   React.useEffect(() => {
-    if (isOpen) {
-      startCamera('environment');
-    }
+    startCamera('environment');
     return () => {
       stopCamera();
       if (timerRef.current) {
@@ -179,9 +185,7 @@ export const VideoRecorder: React.FC<VideoRecorderProps> = ({
         URL.revokeObjectURL(recordedVideo);
       }
     };
-  }, [isOpen, stopCamera, recordedVideo, startCamera]);
-
-  if (!isOpen) return null;
+  }, [stopCamera, recordedVideo]);
 
   if (hasPermission === false) {
     return (
@@ -213,6 +217,7 @@ export const VideoRecorder: React.FC<VideoRecorderProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col z-50">
+      {/* Header */}
       <div className="flex items-center justify-between p-4 bg-black/50">
         <button
           onClick={onClose}
@@ -237,6 +242,7 @@ export const VideoRecorder: React.FC<VideoRecorderProps> = ({
           </div>
         )}
         
+        {/* Camera Switch Button */}
         {!recordedVideo && (
           <button
             onClick={switchCamera}
@@ -255,6 +261,7 @@ export const VideoRecorder: React.FC<VideoRecorderProps> = ({
         {recordedVideo && <div></div>}
       </div>
 
+      {/* Video Area */}
       <div className="flex-1 relative">
         {recordedVideo ? (
           <video
@@ -274,6 +281,7 @@ export const VideoRecorder: React.FC<VideoRecorderProps> = ({
           />
         )}
         
+        {/* Camera indicator */}
         {!recordedVideo && hasPermission && (
           <div className="absolute top-4 left-4 bg-black/50 px-3 py-1 rounded-full">
             <span className="text-white text-sm">
@@ -282,6 +290,7 @@ export const VideoRecorder: React.FC<VideoRecorderProps> = ({
           </div>
         )}
 
+        {/* Recording progress for stories */}
         {isRecording && maxDuration <= 10 && (
           <div className="absolute bottom-20 left-4 right-4">
             <div className="w-full h-1 bg-white/30 rounded-full overflow-hidden">
@@ -294,6 +303,7 @@ export const VideoRecorder: React.FC<VideoRecorderProps> = ({
         )}
       </div>
 
+      {/* Controls */}
       <div className="p-6 bg-black/50">
         {recordedVideo ? (
           <div className="flex items-center justify-center gap-6">

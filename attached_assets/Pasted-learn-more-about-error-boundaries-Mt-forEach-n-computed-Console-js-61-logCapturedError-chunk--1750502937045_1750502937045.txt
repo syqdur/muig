@@ -1,0 +1,45 @@
+learn more about error boundaries.
+Mt.forEach.n.<computed> @ Console.js:61
+logCapturedError @ chunk-EJTTOCY5.js?v=b52006ee:14032
+update.callback @ chunk-EJTTOCY5.js?v=b52006ee:14052
+callCallback @ chunk-EJTTOCY5.js?v=b52006ee:11248
+commitUpdateQueue @ chunk-EJTTOCY5.js?v=b52006ee:11265
+commitLayoutEffectOnFiber @ chunk-EJTTOCY5.js?v=b52006ee:17093
+commitLayoutMountEffects_complete @ chunk-EJTTOCY5.js?v=b52006ee:17980
+commitLayoutEffects_begin @ chunk-EJTTOCY5.js?v=b52006ee:17969
+commitLayoutEffects @ chunk-EJTTOCY5.js?v=b52006ee:17920
+commitRootImpl @ chunk-EJTTOCY5.js?v=b52006ee:19353
+commitRoot @ chunk-EJTTOCY5.js?v=b52006ee:19277
+finishConcurrentRender @ chunk-EJTTOCY5.js?v=b52006ee:18760
+performConcurrentWorkOnRoot @ chunk-EJTTOCY5.js?v=b52006ee:18718
+workLoop @ chunk-EJTTOCY5.js?v=b52006ee:197
+flushWork @ chunk-EJTTOCY5.js?v=b52006ee:176
+performWorkUntilDeadline @ chunk-EJTTOCY5.js?v=b52006ee:384
+chunk-EJTTOCY5.js?v=b52006ee:19413 Uncaught ReferenceError: showStoryUpload is not defined
+    at UserGallery (UserGallery.tsx:460:10)
+    at renderWithHooks (chunk-EJTTOCY5.js?v=b52006ee:11548:26)
+    at mountIndeterminateComponent (chunk-EJTTOCY5.js?v=b52006ee:14926:21)
+    at beginWork (chunk-EJTTOCY5.js?v=b52006ee:15914:22)
+    at beginWork$1 (chunk-EJTTOCY5.js?v=b52006ee:19753:22)
+    at performUnitOfWork (chunk-EJTTOCY5.js?v=b52006ee:19198:20)
+    at workLoopSync (chunk-EJTTOCY5.js?v=b52006ee:19137:13)
+    at renderRootSync (chunk-EJTTOCY5.js?v=b52006ee:19116:15)
+    at recoverFromConcurrentError (chunk-EJTTOCY5.js?v=b52006ee:18736:28)
+    at performConcurrentWorkOnRoot (chunk-EJTTOCY5.js?v=b52006ee:18684:30)
+UserGallery @ UserGallery.tsx:460
+renderWithHooks @ chunk-EJTTOCY5.js?v=b52006ee:11548
+mountIndeterminateComponent @ chunk-EJTTOCY5.js?v=b52006ee:14926
+beginWork @ chunk-EJTTOCY5.js?v=b52006ee:15914
+beginWork$1 @ chunk-EJTTOCY5.js?v=b52006ee:19753
+performUnitOfWork @ chunk-EJTTOCY5.js?v=b52006ee:19198
+workLoopSync @ chunk-EJTTOCY5.js?v=b52006ee:19137
+renderRootSync @ chunk-EJTTOCY5.js?v=b52006ee:19116
+recoverFromConcurrentError @ chunk-EJTTOCY5.js?v=b52006ee:18736
+performConcurrentWorkOnRoot @ chunk-EJTTOCY5.js?v=b52006ee:18684
+workLoop @ chunk-EJTTOCY5.js?v=b52006ee:197
+flushWork @ chunk-EJTTOCY5.js?v=b52006ee:176
+performWorkUntilDeadline @ chunk-EJTTOCY5.js?v=b52006ee:384
+AuthContext.tsx:52 
+            
+            
+           POST https://firestore.googleapis.com/google.firestore.v1.Firestore/Listen/channel?VER=8&database=projects%2Fdev1-b3973%2Fdatabases%2F(default)&gsessionid=VRHkJ9035_pF1Xgjx-dsLA1RdK5ymW5PAMiyPtLXOLg&SID=wHs4UMu4NhQ0qGj3M4wXVQ&RID=41496&TYPE=terminate&zx=w95kx683a269 net::ERR_BLOCKED_BY_CLIENT

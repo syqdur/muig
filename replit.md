@@ -100,10 +100,13 @@ The application follows a full-stack monorepo structure with clear separation be
 - January 2025: Migration from Replit Agent to Replit environment completed
 - January 2025: Firebase configuration updated with live credentials
 - January 2025: Multi-user transformation with Firebase Auth fully operational
+- January 2025: Profile editing restricted to admin mode only for security
+- January 2025: Fixed note creation functionality - notes now appear correctly in feed
 
 ## User Preferences
 
-Preferred communication style: Simple, everyday language.
+Preferred communication style: German language, technical full-stack developer context.
+Security preference: Profile editing only in admin mode
 Admin credentials: admin / test123
 
 ## Current Status

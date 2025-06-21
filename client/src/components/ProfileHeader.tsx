@@ -6,9 +6,10 @@ interface ProfileHeaderProps {
   profile: UserProfile | null;
   onEdit: () => void;
   isDarkMode?: boolean;
+  canEdit?: boolean;
 }
 
-export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, onEdit, isDarkMode = false }) => {
+export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, onEdit, isDarkMode = false, canEdit = false }) => {
   if (!profile) {
     return (
       <div className={`p-4 border-b transition-colors duration-300 ${
@@ -103,19 +104,21 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, onEdit, i
         </div>
       )}
       
-      <div className="flex gap-2">
-        <button 
-          onClick={onEdit}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-300 ${
-            isDarkMode 
-              ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-              : 'bg-blue-100 hover:bg-blue-200 text-blue-700'
-          }`}
-        >
-          <Settings className="w-4 h-4" />
-          Edit Profile
-        </button>
-      </div>
+      {canEdit && (
+        <div className="flex gap-2">
+          <button 
+            onClick={onEdit}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-300 ${
+              isDarkMode 
+                ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                : 'bg-blue-100 hover:bg-blue-200 text-blue-700'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            Edit Profile
+          </button>
+        </div>
+      )}
     </div>
   );
 };

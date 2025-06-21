@@ -1,5 +1,6 @@
 // Hybrid service that falls back to local storage if Firebase fails
 import { MediaItem, Comment, Like, TimelineEvent } from '../types/index';
+import { Story } from './liveService';
 
 // Try Firebase first, fallback to localStorage
 let useFirebase = true;
@@ -11,7 +12,8 @@ const STORAGE_KEYS = {
   MEDIA: (userId: string) => getStorageKey(userId, 'media'),
   COMMENTS: (userId: string) => getStorageKey(userId, 'comments'), 
   LIKES: (userId: string) => getStorageKey(userId, 'likes'),
-  TIMELINE: (userId: string) => getStorageKey(userId, 'timeline')
+  TIMELINE: (userId: string) => getStorageKey(userId, 'timeline'),
+  STORIES: (userId: string) => getStorageKey(userId, 'stories')
 };
 
 // Local storage helpers
@@ -463,14 +465,116 @@ export const deleteTimelineEvent = async (userId: string, eventId: string): Prom
   }));
 };
 
-// Stories Management (placeholder functions)
-export const loadUserStories = (userId: string, callback: (stories: any[]) => void) => {
-  // Return empty stories for now
-  callback([]);
-  return () => {};
+// Stories Management
+export const loadUserStories = (userId: string, callback: (stories: Story[]) => void) => {
+  const loadData = () => {
+    const stories = getFromStorage<Story>(STORAGE_KEYS.STORIES(userId));
+    // Filter out expired stories (older than 24 hours)
+    const now = new Date();
+    const validStories = stories.filter(story => {
+      const storyDate = new Date(story.createdAt);
+      const hoursDiff = (now.getTime() - storyDate.getTime()) / (1000 * 60 * 60);
+      return hoursDiff < 24;
+    });
+    
+    // Update storage with valid stories only
+    if (validStories.length !== stories.length) {
+      saveToStorage(STORAGE_KEYS.STORIES(userId), validStories);
+    }
+    
+    callback(validStories);
+  };
+  
+  loadData();
+  
+  const handleStorageChange = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEYS.STORIES(userId)) {
+      loadData();
+    }
+  };
+  
+  window.addEventListener('storage', handleStorageChange);
+  
+  return () => {
+    window.removeEventListener('storage', handleStorageChange);
+  };
 };
 
 export const deleteStory = async (storyId: string): Promise<void> => {
-  // Placeholder implementation
-  console.log('Story deleted:', storyId);
+  try {
+    // For now, we'll need to check all user stories since we don't have the userId here
+    // This is a simplified implementation
+    const allKeys = Object.keys(localStorage).filter(key => key.includes('gallery_') && key.includes('_stories'));
+    
+    for (const key of allKeys) {
+      const stories = getFromStorage<Story>(key);
+      const filteredStories = stories.filter(story => story.id !== storyId);
+      
+      if (filteredStories.length !== stories.length) {
+        saveToStorage(key, filteredStories);
+        
+        window.dispatchEvent(new StorageEvent('storage', {
+          key,
+          newValue: JSON.stringify(filteredStories)
+        }));
+        break;
+      }
+    }
+  } catch (error) {
+    console.error('Error deleting story:', error);
+    throw error;
+  }
+};
+
+// Story upload function
+export const uploadUserStory = async (userId: string, file: File, userName: string, deviceId: string): Promise<void> => {
+  try {
+    const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+    const mediaUrl = await fileToBase64(file);
+    
+    const story: Story = {
+      id: generateId(),
+      userName,
+      mediaUrl,
+      mediaType,
+      createdAt: new Date().toISOString(),
+      views: [],
+      fileName: file.name
+    };
+
+    const stories = getFromStorage<Story>(STORAGE_KEYS.STORIES(userId));
+    stories.push(story);
+    saveToStorage(STORAGE_KEYS.STORIES(userId), stories);
+    
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: STORAGE_KEYS.STORIES(userId),
+      newValue: JSON.stringify(stories)
+    }));
+    
+    console.log('Story uploaded successfully:', story.id);
+  } catch (error) {
+    console.error('Error uploading story:', error);
+    throw error;
+  }
+};
+
+// Mark story as viewed
+export const markStoryAsViewed = async (storyId: string, userId: string): Promise<void> => {
+  try {
+    const stories = getFromStorage<Story>(STORAGE_KEYS.STORIES(userId));
+    const story = stories.find(s => s.id === storyId);
+    
+    if (story && !story.views.includes(userId)) {
+      story.views.push(userId);
+      saveToStorage(STORAGE_KEYS.STORIES(userId), stories);
+      
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: STORAGE_KEYS.STORIES(userId),
+        newValue: JSON.stringify(stories)
+      }));
+    }
+  } catch (error) {
+    console.error('Error marking story as viewed:', error);
+    throw error;
+  }
 };

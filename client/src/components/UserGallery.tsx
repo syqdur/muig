@@ -9,17 +9,18 @@ import { InstagramGallery } from './InstagramGallery';
 import { MediaModal } from './MediaModal';
 import { ProfileHeader } from './ProfileHeader';
 import { ProfileEditor } from './ProfileEditor';
-import { StoriesBar } from './StoriesBar';
-import { StoriesViewer } from './StoriesViewer';
-import { StoryUploadModal } from './StoryUploadModal';
 import { TabNavigation } from './TabNavigation';
 import { Timeline } from './Timeline';
 import { MusicWishlist } from './MusicWishlist';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { MediaItem, Comment, Like, TimelineEvent } from '../types';
+import { StoriesBar } from './StoriesBar';
+import { StoriesViewer } from './StoriesViewer';
+import { StoryUploadModal } from './StoryUploadModal';
 import {
   uploadUserFiles,
   uploadUserVideo,
+  addUserNote,
   loadUserGallery,
   loadUserMediaItems,
   loadUserComments,
@@ -29,7 +30,9 @@ import {
   addComment,
   deleteComment,
   toggleLike,
-  deleteStory
+  deleteStory,
+  uploadUserStory,
+  markStoryAsViewed
 } from '../services/hybridGalleryService';
 import { Story } from '../services/liveService';
 import { getDeviceId, getUserName, setUserName } from '../utils/deviceId';
@@ -55,8 +58,8 @@ export const UserGallery: React.FC = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [status, setStatus] = useState('');
   const [showStoriesViewer, setShowStoriesViewer] = useState(false);
-  const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
-  const [showStoryUpload, setShowStoryUpload] = useState(false);
+  const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
+  const [showStoryUploadModal, setShowStoryUploadModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'gallery' | 'music' | 'timeline'>('gallery');
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -181,7 +184,7 @@ export const UserGallery: React.FC = () => {
     setStatus('⏳ Saving note...');
 
     try {
-      await addUserNote(userId, noteText, userName, userId);
+      await addUserNote(userId, noteText, userName, deviceId);
       setStatus('✅ Note saved successfully!');
       setTimeout(() => setStatus(''), 3000);
     } catch (error) {
@@ -190,6 +193,47 @@ export const UserGallery: React.FC = () => {
       setTimeout(() => setStatus(''), 5000);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleStoryUpload = async (file: File) => {
+    const userId = currentUser?.uid || 'demo-user';
+    const userName = userProfile?.displayName || currentUser?.displayName || 'Demo User';
+
+    try {
+      const storyId = await uploadUserStory(userId, file, userName, deviceId);
+      console.log('Story uploaded successfully:', storyId);
+      fetchData(); // Refresh data to show new story
+    } catch (error: any) {
+      console.error('Story upload error:', error);
+      throw error;
+    }
+  };
+
+  const handleViewStory = (storyIndex: number) => {
+    setSelectedStoryIndex(storyIndex);
+    setShowStoriesViewer(true);
+  };
+
+  const handleStoryViewed = async (storyId: string) => {
+    const userId = currentUser?.uid || 'demo-user';
+    try {
+      await markStoryAsViewed(storyId, userId);
+      fetchData();
+    } catch (error) {
+      console.error('Error marking story as viewed:', error);
+    }
+  };
+
+  const handleDeleteStory = async (storyId: string) => {
+    try {
+      await deleteStory(storyId);
+      fetchData();
+      if (stories.length <= 1) {
+        setShowStoriesViewer(false);
+      }
+    } catch (error) {
+      console.error('Error deleting story:', error);
     }
   };
 
@@ -283,6 +327,7 @@ export const UserGallery: React.FC = () => {
             profile={userProfile}
             onEdit={() => setShowProfileEditor(true)}
             isDarkMode={isDarkMode}
+            canEdit={isAdmin}
           />
           <div className="flex justify-end items-center gap-4 p-4">
             <button
@@ -319,11 +364,10 @@ export const UserGallery: React.FC = () => {
         {/* Stories Bar */}
         <StoriesBar 
           stories={stories}
-          onStoryClick={(index) => {
-            setCurrentStoryIndex(index);
-            setShowStoriesViewer(true);
-          }}
-          onAddStory={() => setShowStoryUpload(true)}
+          currentUser={currentUserName}
+          onAddStory={() => setShowStoryUploadModal(true)}
+          onViewStory={handleViewStory}
+          isDarkMode={isDarkMode}
         />
 
         {/* Tab Navigation */}
@@ -401,28 +445,28 @@ export const UserGallery: React.FC = () => {
 
         {showStoriesViewer && (
           <StoriesViewer
+            isOpen={showStoriesViewer}
             stories={stories}
-            currentIndex={currentStoryIndex}
+            initialStoryIndex={selectedStoryIndex}
+            currentUser={currentUserName}
             onClose={() => setShowStoriesViewer(false)}
-            onNext={() => setCurrentStoryIndex(prev => (prev + 1) % stories.length)}
-            onPrevious={() => setCurrentStoryIndex(prev => prev === 0 ? stories.length - 1 : prev - 1)}
-            onDelete={(storyId) => {/* TODO: Delete story */}}
-            currentUser={userProfile.displayName}
-            deviceId={currentUser.uid}
-            isAdmin={false}
+            onStoryViewed={handleStoryViewed}
+            onDeleteStory={handleDeleteStory}
+            isAdmin={isAdmin}
+            isDarkMode={isDarkMode}
           />
         )}
 
-        {showStoryUpload && (
+        {showStoryUploadModal && (
           <StoryUploadModal
-            onClose={() => setShowStoryUpload(false)}
-            onUpload={(file, text) => {/* TODO: Upload story */}}
-            userName={userProfile.displayName}
-            deviceId={currentUser.uid}
+            isOpen={showStoryUploadModal}
+            onClose={() => setShowStoryUploadModal(false)}
+            onUpload={handleStoryUpload}
+            isDarkMode={isDarkMode}
           />
         )}
 
-        {showProfileEditor && (
+        {showProfileEditor && isAdmin && (
           <ProfileEditor
             onClose={() => setShowProfileEditor(false)}
           />
@@ -454,6 +498,29 @@ export const UserGallery: React.FC = () => {
         userId={currentUser.uid}
         galleryOwnerName={userProfile.displayName}
       />
+
+      {showStoriesViewer && (
+        <StoriesViewer
+          isOpen={showStoriesViewer}
+          stories={stories}
+          initialStoryIndex={selectedStoryIndex}
+          currentUser={currentUserName}
+          onClose={() => setShowStoriesViewer(false)}
+          onStoryViewed={handleStoryViewed}
+          onDeleteStory={handleDeleteStory}
+          isAdmin={isAdmin}
+          isDarkMode={isDarkMode}
+        />
+      )}
+
+      {showStoryUploadModal && (
+        <StoryUploadModal
+          isOpen={showStoryUploadModal}
+          onClose={() => setShowStoryUploadModal(false)}
+          onUpload={handleStoryUpload}
+          isDarkMode={isDarkMode}
+        />
+      )}
     </div>
   );
 };

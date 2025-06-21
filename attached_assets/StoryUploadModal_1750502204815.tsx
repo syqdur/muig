@@ -34,6 +34,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
 
     resetStates();
 
+    // Comprehensive file validation and logging
     const fileSizeKB = (file.size / 1024).toFixed(1);
     const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
     
@@ -43,7 +44,9 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
     console.log(`📊 Size: ${fileSizeKB} KB`);
     console.log(`📊 Size: ${fileSizeMB} MB`);
     console.log(`📁 Type: ${file.type}`);
+    console.log(`📅 Last Modified: ${new Date(file.lastModified).toISOString()}`);
 
+    // Validate file type with detailed feedback
     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
       const errorMsg = `Ungültiger Dateityp: ${file.type}`;
       console.error(`❌ ${errorMsg}`);
@@ -51,6 +54,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
       return;
     }
 
+    // Validate file size with detailed feedback
     const maxSize = 100 * 1024 * 1024; // 100MB
     if (file.size > maxSize) {
       const errorMsg = `Datei zu groß: ${fileSizeMB}MB (max. 100MB)`;
@@ -59,6 +63,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
       return;
     }
 
+    // Show warning for large files (>20MB)
     if (file.size > 20 * 1024 * 1024) {
       const proceed = window.confirm(
         `📁 Große Datei erkannt (${fileSizeMB}MB)\n\n⏳ Upload kann länger dauern.\n📶 Stelle sicher, dass deine Internetverbindung stabil ist.\n\n✅ Trotzdem hochladen?`
@@ -69,6 +74,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
       }
     }
 
+    // Start upload process
     setIsUploading(true);
     setUploadProgress('📤 Bereite Upload vor...');
     console.log(`🚀 Starting story upload process...`);
@@ -81,6 +87,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
       setUploadSuccess('Story erfolgreich hochgeladen! 🎉');
       setUploadProgress('✅ Upload abgeschlossen!');
       
+      // Auto-close after success
       setTimeout(() => {
         onClose();
       }, 1500);
@@ -96,6 +103,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
         errorMessage = error;
       }
       
+      // Enhanced error categorization
       if (errorMessage.includes('storage/unauthorized') || errorMessage.includes('permission')) {
         setUploadError('🔒 Keine Berechtigung zum Hochladen\n\n💡 Lösungen:\n• Lade die Seite neu (Strg+F5)\n• Prüfe deine Internetverbindung\n• Versuche es in wenigen Minuten erneut');
       } else if (errorMessage.includes('storage/quota-exceeded') || errorMessage.includes('Speicherplatz')) {
@@ -126,8 +134,10 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
     setUploadProgress('📤 Bereite Video-Upload vor...');
     
     try {
+      // Convert blob to file for upload
       const file = new File([videoBlob], `story-${Date.now()}.webm`, { type: 'video/webm' });
       
+      // Log video info for debugging
       const fileSizeKB = (file.size / 1024).toFixed(1);
       const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
       console.log(`📤 === STORY VIDEO RECORDING ===`);
@@ -141,6 +151,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
       setUploadSuccess('Video-Story erfolgreich hochgeladen! 🎥');
       setUploadProgress('✅ Video-Upload abgeschlossen!');
       
+      // Auto-close after success
       setTimeout(() => {
         onClose();
       }, 1500);
@@ -190,6 +201,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
             </button>
           </div>
 
+          {/* Info Box */}
           <div className={`mb-6 p-4 rounded-xl transition-colors duration-300 ${
             isDarkMode ? 'bg-blue-900/20 border border-blue-700/30' : 'bg-blue-50 border border-blue-200'
           }`}>
@@ -221,6 +233,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
             </div>
           </div>
 
+          {/* Success Message */}
           {uploadSuccess && (
             <div className={`mb-4 p-3 rounded-xl border transition-colors duration-300 ${
               isDarkMode 
@@ -234,6 +247,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
             </div>
           )}
 
+          {/* Progress Message */}
           {uploadProgress && (
             <div className={`mb-4 p-3 rounded-xl border transition-colors duration-300 ${
               isDarkMode 
@@ -247,6 +261,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
             </div>
           )}
 
+          {/* Error Display */}
           {uploadError && (
             <div className={`mb-4 p-3 rounded-xl border transition-colors duration-300 ${
               isDarkMode 
@@ -273,6 +288,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
           />
 
           <div className="space-y-3">
+            {/* Gallery Upload */}
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
@@ -305,6 +321,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
               </div>
             </button>
 
+            {/* Live Camera Recording */}
             <button
               onClick={() => setShowVideoRecorder(true)}
               disabled={isUploading}
@@ -338,6 +355,7 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
             </button>
           </div>
 
+          {/* Upload Status */}
           {isUploading && (
             <div className="mt-4 text-center">
               <div className="w-8 h-8 mx-auto border-4 border-pink-500 border-t-transparent rounded-full animate-spin mb-2"></div>
@@ -346,17 +364,40 @@ export const StoryUploadModal: React.FC<StoryUploadModalProps> = ({
               }`}>
                 Story wird hochgeladen...
               </p>
+              <p className={`text-xs mt-1 transition-colors duration-300 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-500'
+              }`}>
+                Bei großen Dateien kann dies länger dauern
+              </p>
             </div>
           )}
+
+          {/* Close Button */}
+          <button
+            onClick={onClose}
+            disabled={isUploading}
+            className={`w-full mt-4 py-3 px-4 rounded-xl transition-colors duration-300 ${
+              isUploading
+                ? 'cursor-not-allowed opacity-50'
+                : ''
+            } ${
+              isDarkMode 
+                ? 'bg-gray-600 hover:bg-gray-500 text-gray-200' 
+                : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+            }`}
+          >
+            {isUploading ? 'Upload läuft...' : 'Schließen'}
+          </button>
         </div>
       </div>
 
+      {/* Video Recorder for Stories */}
       {showVideoRecorder && (
         <VideoRecorder
-          isOpen={showVideoRecorder}
           onVideoRecorded={handleVideoRecorded}
           onClose={() => setShowVideoRecorder(false)}
           isDarkMode={isDarkMode}
+          maxDuration={10} // 10 seconds for stories
         />
       )}
     </>

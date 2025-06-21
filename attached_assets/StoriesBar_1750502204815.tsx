@@ -21,6 +21,7 @@ export const StoriesBar: React.FC<StoriesBarProps> = ({
   console.log(`📊 Total stories: ${stories.length}`);
   console.log(`👤 Current user: ${currentUser}`);
   
+  // 🔧 FIX: Add more detailed debugging
   if (stories.length > 0) {
     console.log(`📋 Stories details:`);
     stories.forEach((story, index) => {
@@ -44,6 +45,7 @@ export const StoriesBar: React.FC<StoriesBarProps> = ({
     userName,
     stories: userStoriesArray,
     latestStory: userStoriesArray[userStoriesArray.length - 1],
+    // 🎯 NEW: Check if user has viewed ALL stories from this user
     hasUnviewed: userStoriesArray.some(story => !story.views.includes(currentUser))
   }));
 
@@ -66,7 +68,7 @@ export const StoriesBar: React.FC<StoriesBarProps> = ({
       'https://images.pexels.com/photos/1070850/pexels-photo-1070850.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop',
       'https://images.pexels.com/photos/1444424/pexels-photo-1444424.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop',
       'https://images.pexels.com/photos/1024967/pexels-photo-1024967.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop',
-      'https://images.pexels.com/photos/1729799/pexels-photo-1729799.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop',
+      'https://images.pexels.com/photos/1729799/pexels-photo-1729799.jpeg?auto=compress&cs=tinysrgb&w=100&h-100&fit=crop',
       'https://images.pexels.com/photos/1444443/pexels-photo-1444443.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop'
     ];
     

@@ -34,7 +34,7 @@ export const NotePost: React.FC<NotePostProps> = ({
   const [commentText, setCommentText] = useState('');
   const [showAllComments, setShowAllComments] = useState(false);
   const [isEditingNote, setIsEditingNote] = useState(false);
-  const [editNoteText, setEditNoteText] = useState(item.noteText || '');
+  const [editNoteText, setEditNoteText] = useState(item.noteText || item.text || '');
 
   const isLiked = likes.some(like => like.userName === userName);
   const likeCount = likes.length;
@@ -69,14 +69,15 @@ export const NotePost: React.FC<NotePostProps> = ({
   };
 
   const handleEditNote = () => {
-    if (onEditNote && editNoteText.trim() && editNoteText !== item.noteText) {
+    const currentText = item.noteText || item.text || '';
+    if (onEditNote && editNoteText.trim() && editNoteText !== currentText) {
       onEditNote(item, editNoteText.trim());
     }
     setIsEditingNote(false);
   };
 
   const handleCancelEdit = () => {
-    setEditNoteText(item.noteText || '');
+    setEditNoteText(item.noteText || item.text || '');
     setIsEditingNote(false);
   };
 
@@ -221,7 +222,7 @@ export const NotePost: React.FC<NotePostProps> = ({
             </button>
             <button
               onClick={handleEditNote}
-              disabled={!editNoteText.trim() || editNoteText === item.noteText}
+              disabled={!editNoteText.trim() || editNoteText === (item.noteText || item.text || '')}
               className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm transition-colors"
             >
               Speichern
@@ -262,7 +263,7 @@ export const NotePost: React.FC<NotePostProps> = ({
             <p className={`text-base leading-relaxed transition-colors duration-300 ${
               isDarkMode ? 'text-gray-200' : 'text-gray-800'
             }`}>
-              "{item.noteText}"
+              "{item.noteText || item.text || ''}"
             </p>
           </div>
         </div>

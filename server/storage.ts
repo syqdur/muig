@@ -1,4 +1,4 @@
-import { users, userProfiles, mediaItems, comments, likes, timelineEvents, stories, musicWishlist, siteStatus, type User, type InsertUser, type UserProfile, type InsertUserProfile, type MediaItem, type InsertMediaItem, type Comment, type InsertComment, type Like, type InsertLike, type TimelineEvent, type InsertTimelineEvent, type Story, type InsertStory, type MusicWishlistItem, type InsertMusicWishlistItem, type SiteStatus, type InsertSiteStatus } from "@shared/schema";
+import { users, userProfiles, mediaItems, comments, likes, timelineEvents, stories, musicWishlist, siteStatus, anonymousUsers, type User, type InsertUser, type UserProfile, type InsertUserProfile, type MediaItem, type InsertMediaItem, type Comment, type InsertComment, type Like, type InsertLike, type TimelineEvent, type InsertTimelineEvent, type Story, type InsertStory, type MusicWishlistItem, type InsertMusicWishlistItem, type SiteStatus, type InsertSiteStatus, type AnonymousUser, type InsertAnonymousUser } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
 
@@ -7,6 +7,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   
   // User profiles
   getUserProfile(userId: number): Promise<UserProfile | undefined>;
@@ -48,6 +49,10 @@ export interface IStorage {
   createMusicWishlistItem(item: InsertMusicWishlistItem): Promise<MusicWishlistItem>;
   deleteMusicWishlistItem(id: number): Promise<void>;
   
+  // Anonymous users
+  getAnonymousUserByDeviceId(deviceId: string): Promise<AnonymousUser | undefined>;
+  createAnonymousUser(user: InsertAnonymousUser): Promise<AnonymousUser>;
+  
   // Site status
   getSiteStatus(): Promise<SiteStatus | undefined>;
   updateSiteStatus(status: InsertSiteStatus): Promise<SiteStatus>;
@@ -71,6 +76,15 @@ export class DatabaseStorage implements IStorage {
       .values(insertUser)
       .returning();
     return user;
+  }
+
+  async updateUser(id: number, userUpdates: Partial<InsertUser>): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set(userUpdates)
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser || undefined;
   }
 
   // User profiles
@@ -235,6 +249,20 @@ export class DatabaseStorage implements IStorage {
   async getSiteStatus(): Promise<SiteStatus | undefined> {
     const [status] = await db.select().from(siteStatus).orderBy(desc(siteStatus.updatedAt)).limit(1);
     return status || undefined;
+  }
+
+  // Anonymous users
+  async getAnonymousUserByDeviceId(deviceId: string): Promise<AnonymousUser | undefined> {
+    const [user] = await db.select().from(anonymousUsers).where(eq(anonymousUsers.deviceId, deviceId));
+    return user || undefined;
+  }
+
+  async createAnonymousUser(insertUser: InsertAnonymousUser): Promise<AnonymousUser> {
+    const [user] = await db
+      .insert(anonymousUsers)
+      .values(insertUser)
+      .returning();
+    return user;
   }
 
   async updateSiteStatus(status: InsertSiteStatus): Promise<SiteStatus> {

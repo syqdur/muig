@@ -1,4 +1,6 @@
 // API client for database operations
+import { auth } from '../config/firebase';
+
 const API_BASE = '';
 
 export interface ApiResponse<T> {
@@ -7,6 +9,22 @@ export interface ApiResponse<T> {
 }
 
 class ApiClient {
+  private async getAuthHeaders(includeContentType: boolean = true): Promise<HeadersInit> {
+    const user = auth.currentUser;
+    const headers: HeadersInit = {};
+    
+    if (user) {
+      const token = await user.getIdToken();
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    if (includeContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
+    
+    return headers;
+  }
+
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const response = await fetch(`${API_BASE}/api${endpoint}`, {
       headers: {
@@ -18,6 +36,20 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Network error' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  private async uploadRequest<T>(endpoint: string, formData: FormData): Promise<T> {
+    const response = await fetch(`${API_BASE}/api${endpoint}`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Upload failed' }));
       throw new Error(error.message || `HTTP ${response.status}`);
     }
 
@@ -179,6 +211,43 @@ class ApiClient {
     return this.request('/site-status', {
       method: 'POST',
       body: JSON.stringify(statusData),
+    });
+  }
+
+  // File upload operations
+  async uploadMediaFiles(userId: number, files: FileList, uploadedBy: string) {
+    const formData = new FormData();
+    Array.from(files).forEach(file => {
+      formData.append('files', file);
+    });
+    formData.append('uploadedBy', uploadedBy);
+    
+    return this.uploadRequest(`/users/${userId}/media/upload`, formData);
+  }
+
+  async uploadTimelineFiles(userId: number, files: FileList, eventData: any) {
+    const formData = new FormData();
+    Array.from(files).forEach(file => {
+      formData.append('files', file);
+    });
+    
+    // Add event data to form
+    Object.keys(eventData).forEach(key => {
+      formData.append(key, eventData[key]);
+    });
+    
+    return this.uploadRequest(`/users/${userId}/timeline/upload`, formData);
+  }
+
+  // Anonymous user operations
+  async getAnonymousUser(deviceId: string) {
+    return this.request(`/anonymous-users/${encodeURIComponent(deviceId)}`);
+  }
+
+  async createAnonymousUser(userData: any) {
+    return this.request('/anonymous-users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
     });
   }
 }

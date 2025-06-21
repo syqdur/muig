@@ -1,9 +1,39 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertUserProfileSchema, insertMediaItemSchema, insertCommentSchema, insertLikeSchema, insertTimelineEventSchema, insertStorySchema, insertMusicWishlistSchema, insertSiteStatusSchema } from "@shared/schema";
+import { insertUserSchema, insertUserProfileSchema, insertMediaItemSchema, insertCommentSchema, insertLikeSchema, insertTimelineEventSchema, insertStorySchema, insertMusicWishlistSchema, insertSiteStatusSchema, insertAnonymousUserSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Anonymous user routes
+  app.get("/api/anonymous-users/:deviceId", async (req, res) => {
+    try {
+      const user = await storage.getAnonymousUserByDeviceId(req.params.deviceId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/anonymous-users", async (req, res) => {
+    try {
+      const userData = insertAnonymousUserSchema.parse(req.body);
+      
+      // Check if user already exists
+      const existingUser = await storage.getAnonymousUserByDeviceId(userData.deviceId);
+      if (existingUser) {
+        return res.json(existingUser);
+      }
+      
+      const user = await storage.createAnonymousUser(userData);
+      res.status(201).json(user);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid user data" });
+    }
+  });
+
   // User management routes
   app.get("/api/users/:id", async (req, res) => {
     try {
@@ -55,13 +85,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/users/:id/profile", async (req, res) => {
     try {
-      const profileData = insertUserProfileSchema.partial().parse(req.body);
-      const profile = await storage.updateUserProfile(parseInt(req.params.id), profileData);
+      const userId = parseInt(req.params.id);
+      const updates = req.body;
+      
+      // If displayName is being updated, update the users table as well
+      if (updates.displayName) {
+        await storage.updateUser(userId, { displayName: updates.displayName });
+      }
+      
+      // Update the user profile
+      const profileData = insertUserProfileSchema.partial().parse(updates);
+      const profile = await storage.updateUserProfile(userId, profileData);
       if (!profile) {
         return res.status(404).json({ message: "Profile not found" });
       }
       res.json(profile);
     } catch (error) {
+      console.error("Profile update error:", error);
       res.status(400).json({ message: "Invalid profile data" });
     }
   });

@@ -76,6 +76,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateUserProfile = async (profileUpdates: Partial<UserProfile>) => {
     if (!currentUser) return;
     
+    // If displayName is being updated, also update Firebase Auth
+    if (profileUpdates.displayName && profileUpdates.displayName !== currentUser.displayName) {
+      await updateProfile(currentUser, { displayName: profileUpdates.displayName });
+    }
+    
     const updatedProfile = { ...userProfile, ...profileUpdates };
     await createUserProfile(updatedProfile as UserProfile);
     setUserProfile(updatedProfile as UserProfile);

@@ -98,6 +98,14 @@ export const musicWishlist = pgTable("music_wishlist", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Anonymous users (visitors) linked by device ID
+export const anonymousUsers = pgTable("anonymous_users", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  deviceId: text("device_id").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Site status for admin controls
 export const siteStatus = pgTable("site_status", {
   id: serial("id").primaryKey(),
@@ -180,6 +188,14 @@ export const musicWishlistRelations = relations(musicWishlist, ({ one }) => ({
   }),
 }));
 
+export const anonymousUsersRelations = relations(anonymousUsers, ({ many }) => ({
+  mediaItems: many(mediaItems),
+  comments: many(comments),
+  likes: many(likes),
+  timelineEvents: many(timelineEvents),
+  stories: many(stories),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -224,6 +240,11 @@ export const insertMusicWishlistSchema = createInsertSchema(musicWishlist).omit(
   createdAt: true,
 });
 
+export const insertAnonymousUserSchema = createInsertSchema(anonymousUsers).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertSiteStatusSchema = createInsertSchema(siteStatus).omit({
   id: true,
   updatedAt: true,
@@ -246,5 +267,7 @@ export type Story = typeof stories.$inferSelect;
 export type InsertStory = z.infer<typeof insertStorySchema>;
 export type MusicWishlistItem = typeof musicWishlist.$inferSelect;
 export type InsertMusicWishlistItem = z.infer<typeof insertMusicWishlistSchema>;
+export type AnonymousUser = typeof anonymousUsers.$inferSelect;
+export type InsertAnonymousUser = z.infer<typeof insertAnonymousUserSchema>;
 export type SiteStatus = typeof siteStatus.$inferSelect;
 export type InsertSiteStatus = z.infer<typeof insertSiteStatusSchema>;

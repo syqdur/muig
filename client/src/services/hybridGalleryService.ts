@@ -4,12 +4,14 @@ import { MediaItem, Comment, Like, TimelineEvent } from '../types/index';
 // Try Firebase first, fallback to localStorage
 let useFirebase = true;
 
-// Local storage keys
+// Local storage keys - now user-specific
+const getStorageKey = (userId: string, type: string) => `gallery_${userId}_${type}`;
+
 const STORAGE_KEYS = {
-  MEDIA: 'gallery_media',
-  COMMENTS: 'gallery_comments', 
-  LIKES: 'gallery_likes',
-  TIMELINE: 'gallery_timeline'
+  MEDIA: (userId: string) => getStorageKey(userId, 'media'),
+  COMMENTS: (userId: string) => getStorageKey(userId, 'comments'), 
+  LIKES: (userId: string) => getStorageKey(userId, 'likes'),
+  TIMELINE: (userId: string) => getStorageKey(userId, 'timeline')
 };
 
 // Local storage helpers
@@ -42,7 +44,7 @@ export const uploadUserFiles = async (
   onProgress: (progress: number) => void
 ): Promise<void> => {
   // For now, create local URLs and store metadata
-  const mediaItems = getFromStorage<MediaItem>(STORAGE_KEYS.MEDIA);
+  const mediaItems = getFromStorage<MediaItem>(STORAGE_KEYS.MEDIA(userId));
   let uploaded = 0;
   
   for (const file of Array.from(files)) {
@@ -68,11 +70,11 @@ export const uploadUserFiles = async (
     onProgress((uploaded / files.length) * 100);
   }
   
-  saveToStorage(STORAGE_KEYS.MEDIA, mediaItems);
+  saveToStorage(STORAGE_KEYS.MEDIA(userId), mediaItems);
   
   // Trigger storage event for real-time updates
   window.dispatchEvent(new StorageEvent('storage', {
-    key: STORAGE_KEYS.MEDIA,
+    key: STORAGE_KEYS.MEDIA(userId),
     newValue: JSON.stringify(mediaItems)
   }));
 };

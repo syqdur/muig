@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, MoreHorizontal, Sun, Moon } from 'lucide-react';
 import { AdminPanel } from './AdminPanel';
 import { AdminLoginModal } from './AdminLoginModal';
+import { UserNamePrompt } from './UserNamePrompt';
 import { useAuth } from '../contexts/AuthContext';
 import { UploadSection } from './UploadSection';
 import { InstagramGallery } from './InstagramGallery';
@@ -29,10 +30,18 @@ import {
   addUserNote
 } from '../services/hybridGalleryService';
 import { Story } from '../services/liveService';
+import { getDeviceId, getUserName, setUserName } from '../utils/deviceId';
+import { anonymousUserService } from '../services/anonymousUserService';
 
 export const UserGallery: React.FC = () => {
   const { currentUser, userProfile, logout } = useAuth();
   const { isDarkMode, toggleDarkMode } = useDarkMode();
+  
+  // Anonymous user states
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [currentUserName, setCurrentUserName] = useState<string>('');
+  const [deviceId] = useState(() => getDeviceId());
+  
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [likes, setLikes] = useState<Like[]>([]);
@@ -51,19 +60,43 @@ export const UserGallery: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
 
+  // Check for existing user name on mount
+  useEffect(() => {
+    const savedName = getUserName();
+    if (savedName) {
+      setCurrentUserName(savedName);
+    } else {
+      setShowNamePrompt(true);
+    }
+  }, []);
+
   // Load user data - use demo user if no auth
   useEffect(() => {
-    const userId = currentUser?.uid || 'demo-user';
-    const unsubscribeGallery = loadUserGallery(userId, setMediaItems);
+    if (currentUserName) {
+      const userId = currentUser?.uid || 'demo-user';
+      const unsubscribeGallery = loadUserGallery(userId, setMediaItems);
 
-    return () => {
-      unsubscribeGallery();
-    };
-  }, [currentUser]);
+      return () => {
+        unsubscribeGallery();
+      };
+    }
+  }, [currentUser, currentUserName]);
+
+  const handleNameSubmit = async (name: string) => {
+    try {
+      await anonymousUserService.getOrCreateUser(name, deviceId);
+      setUserName(name);
+      setCurrentUserName(name);
+      setShowNamePrompt(false);
+    } catch (error) {
+      console.error('Error creating anonymous user:', error);
+    }
+  };
 
   const handleUpload = async (files: FileList) => {
+    if (!currentUserName) return;
+    
     const userId = currentUser?.uid || 'demo-user';
-    const userName = userProfile?.displayName || currentUser?.displayName || 'Demo User';
 
     setIsUploading(true);
     setUploadProgress(0);
@@ -73,8 +106,8 @@ export const UserGallery: React.FC = () => {
       await uploadUserFiles(
         userId,
         files, 
-        userName, 
-        userId,
+        currentUserName, 
+        deviceId,
         setUploadProgress
       );
       setStatus('✅ Files uploaded successfully!');
@@ -90,8 +123,9 @@ export const UserGallery: React.FC = () => {
   };
 
   const handleVideoUpload = async (videoBlob: Blob) => {
+    if (!currentUserName) return;
+    
     const userId = currentUser?.uid || 'demo-user';
-    const userName = userProfile?.displayName || currentUser?.displayName || 'Demo User';
 
     setIsUploading(true);
     setUploadProgress(0);
@@ -101,8 +135,8 @@ export const UserGallery: React.FC = () => {
       await uploadUserVideoBlob(
         userId,
         videoBlob, 
-        userName, 
-        userId,
+        currentUserName, 
+        deviceId,
         setUploadProgress
       );
       setStatus('✅ Video uploaded successfully!');
@@ -364,6 +398,13 @@ export const UserGallery: React.FC = () => {
             isOpen={showAdminLogin}
             onClose={() => setShowAdminLogin(false)}
             onLogin={handleAdminLogin}
+            isDarkMode={isDarkMode}
+          />
+        )}
+
+        {showNamePrompt && (
+          <UserNamePrompt
+            onNameSubmit={handleNameSubmit}
             isDarkMode={isDarkMode}
           />
         )}

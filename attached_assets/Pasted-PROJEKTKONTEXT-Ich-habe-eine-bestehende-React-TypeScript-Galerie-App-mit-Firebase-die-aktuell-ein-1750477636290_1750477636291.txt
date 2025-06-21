@@ -1,0 +1,126 @@
+PROJEKTKONTEXT:
+Ich habe eine bestehende React/TypeScript-Galerie-App mit Firebase, die aktuell ein statisches Profil mit Medieninhalten anzeigt. Die App hat bereits:
+Timeline-Komponente mit Event-Management
+Spotify-Integration (globale Session)
+Stories, Upload-Funktionen, Kommentare, Likes
+Dark Mode, Responsive Design
+Firebase Firestore & Storage
+ANFORDERUNGEN:
+1. BENUTZERVERWALTUNG & AUTHENTIFIZIERUNG
+Implementiere Firebase Authentication (E-Mail/Passwort)
+Registrierung, Login, Logout-Funktionalität
+Nach Login: Automatische Weiterleitung auf /gallery/<username>
+Jeder User erhält eine eigene Galerie-Seite mit eindeutiger URL
+2. BENUTZERPROFIL & PERSÖNLICHE GALERIE
+Jeder User kann:
+Profilbild hochladen/ändern (in users/<userID>/profilePic)
+Bio bearbeiten (mit Emojis, Textformatierung)
+Externe Links einfügen (Spotify, Instagram, etc.)
+Eigene Galerie mit Medien verwalten
+Galerie ist leer, bis User selbst Medien hochlädt
+Alle Daten isoliert pro User
+3. DATENISOLATION & FIREBASE-STRUKTUR
+Firestore-Struktur:
+users/<userID>/profile - Profildaten, Bio, Links
+users/<userID>/spotify - Spotify-Token, Playlists
+galleries/<userID>/events - Timeline-Events
+galleries/<userID>/stories - Stories
+galleries/<userID>/comments - Kommentare
+galleries/<userID>/likes - Likes
+Storage-Struktur:
+galleries/<userID>/media/ - Alle Medien
+users/<userID>/profilePic - Profilbilder
+Keine Galerie darf Inhalte anderer Nutzer sehen/ändern
+4. SPOTIFY-INTEGRATION PRO USER
+Jeder User kann eigenen Spotify-Account verbinden
+Spotify-Daten (Token, Playlists) werden pro User gespeichert
+Keine globale Spotify-Session mehr
+Bestehende Spotify-Komponenten bleiben, arbeiten aber userbasiert
+5. ADMIN-PANEL
+Admin-Login mit festen Zugangsdaten:
+Username: admin
+Passwort: mauro
+Admin-Panel zeigt:
+Liste aller registrierten User
+Profilinfos, Medienanzahl, Link zur jeweiligen Galerie
+User löschen/deaktivieren (optional)
+KEINE Einsicht in Medien (Datenschutz)
+6. ROUTING & NAVIGATION
+/ - Startseite mit Admin-Login
+/login - User-Login
+/register - User-Registrierung
+/gallery/:username - Persönliche Galerie (nur für eingeloggten User)
+Geschützte Routen für alle Galerie-Funktionen
+7. TECHNISCHE ANFORDERUNGEN
+Basis-Template: Verwende die bestehende App.tsx als Template für UserGallery
+TypeScript: Vollständige Typisierung
+Responsive Design: Behalte das bestehende Design bei
+Error Handling: Umfassende Fehlerbehandlung
+Loading States: Für alle Async-Operationen
+Security: Firebase Security Rules für vollständige Isolation
+NEUE DATEIEN ERSTELLEN:
+
+src/
+├── contexts/
+│   └── AuthContext.tsx
+├── components/
+│   ├── auth/
+│   │   ├── LoginForm.tsx
+│   │   ├── RegisterForm.tsx
+│   │   └── AuthWrapper.tsx
+│   ├── UserGallery.tsx (Basis: App.tsx)
+│   ├── ProfileEditor.tsx
+│   ├── UserProfileHeader.tsx
+│   └── admin/
+│       ├── AdminLogin.tsx
+│       ├── AdminPanel.tsx
+│       └── UserManagement.tsx
+└── services/
+    ├── authService.ts
+    ├── userService.ts
+    └── galleryService.ts
+
+BESTEHENDE DATEIEN ANPASSEN:
+src/App.tsx - Auth-Integration, Routing
+src/config/firebase.ts - Auth-Initialisierung
+Alle bestehenden Services auf UserID umstellen
+Spotify-Service für User-Kontext anpassen
+FIREBASE SECURITY RULES (VORSCHLAG):
+
+// Firestore Rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User kann nur eigene Daten lesen/schreiben
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Galerie-Daten nur für eigenen User
+    match /galleries/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Admin kann alle User-Daten lesen (aber keine Medien)
+    match /users/{userId} {
+      allow read: if request.auth != null && 
+        (request.auth.uid == userId || isAdmin(request.auth.uid));
+    }
+  }
+}
+
+// Storage Rules
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // User kann nur eigene Medien hochladen/löschen
+    match /galleries/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Profilbilder nur für eigenen User
+    match /users/{userId}/profilePic/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

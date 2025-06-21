@@ -1,0 +1,14 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // User profile pictures - users can only access their own
+    match /users/{userId}/{allPaths=**} {
+      allow read, write, create, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // User gallery media - complete isolation
+    match /galleries/{userId}/{allPaths=**} {
+      allow read, write, create, delete: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

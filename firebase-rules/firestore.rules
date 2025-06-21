@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User profiles - users can access their own profile
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Allow creation during registration
+      allow create: if request.auth != null;
+    }
+    
+    // User galleries - complete isolation per user
+    match /galleries/{userId}/{document=**} {
+      allow read, write, create, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Admin can read user profiles for management
+    match /users/{userId} {
+      allow read: if request.auth != null;
+    }
+  }
+}

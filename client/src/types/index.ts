@@ -8,6 +8,11 @@ export interface MediaItem {
   type: 'image' | 'video' | 'note';
   noteText?: string;
   isUnavailable?: boolean;
+  firebaseId?: string;
+  fileName?: string;
+  text?: string;
+  userId?: string;
+  createdAt?: string;
 }
 
 export interface Comment {
@@ -30,6 +35,7 @@ export interface Like {
 // Timeline Types
 export interface TimelineEvent {
   id: string;
+  userId?: string;
   title: string;
   customEventName?: string; // For custom event types
   date: string;

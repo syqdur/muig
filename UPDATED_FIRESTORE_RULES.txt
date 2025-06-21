@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Admin access - replace with your actual admin email/uid
+    function isAdmin() {
+      return request.auth != null && 
+             (request.auth.token.email == 'your-admin-email@example.com' ||
+              request.auth.uid == 'your-admin-uid');
+    }
+    
+    // Users collection - allow read for authenticated users, admin can do everything
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write, create, delete: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+    }
+    
+    // User profiles
+    match /userProfiles/{userId} {
+      allow read: if request.auth != null;
+      allow write, create, delete: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+    }
+    
+    // Galleries - users can access their own, admin can access all
+    match /galleries/{userId}/{document=**} {
+      allow read, write, create, delete: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+    }
+    
+    // Media items
+    match /mediaItems/{mediaId} {
+      allow read: if request.auth != null;
+      allow write, create, delete: if request.auth != null || isAdmin();
+    }
+    
+    // Comments
+    match /comments/{commentId} {
+      allow read: if request.auth != null;
+      allow write, create: if request.auth != null;
+      allow delete: if (request.auth != null && resource.data.userId == request.auth.uid) || isAdmin();
+    }
+    
+    // Likes
+    match /likes/{likeId} {
+      allow read: if request.auth != null;
+      allow write, create, delete: if request.auth != null || isAdmin();
+    }
+    
+    // Timeline events
+    match /timelineEvents/{eventId} {
+      allow read: if request.auth != null;
+      allow write, create: if request.auth != null;
+      allow delete: if (request.auth != null && resource.data.userId == request.auth.uid) || isAdmin();
+    }
+    
+    // Stories
+    match /stories/{storyId} {
+      allow read: if request.auth != null;
+      allow write, create: if request.auth != null;
+      allow delete: if (request.auth != null && resource.data.userId == request.auth.uid) || isAdmin();
+    }
+    
+    // Music wishlist
+    match /musicWishlist/{itemId} {
+      allow read: if request.auth != null;
+      allow write, create: if request.auth != null;
+      allow delete: if (request.auth != null && resource.data.userId == request.auth.uid) || isAdmin();
+    }
+    
+    // Site status - admin only
+    match /siteStatus/{document=**} {
+      allow read: if request.auth != null;
+      allow write, create, delete: if isAdmin();
+    }
+  }
+}

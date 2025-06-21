@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Calendar, MapPin, Camera, Video, Edit3, Trash2, X, Upload, Eye, ExternalLink, Heart, MessageCircle, Clock, Star, Award, Users, Sparkles, Image } from 'lucide-react';
 import { TimelineEvent, MediaItem } from '../types';
-import { loadTimelineEvents, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent } from '../services/databaseTimelineService';
+import { loadUserTimeline, uploadTimelineEvent, deleteTimelineEvent } from '../services/hybridGalleryService';
 
 interface TimelineProps {
   isDarkMode: boolean;
@@ -44,7 +44,7 @@ export const Timeline: React.FC<TimelineProps> = ({ isDarkMode, userName, isAdmi
         setIsLoading(true);
         setError(null);
         
-        unsubscribe = loadTimelineEvents((timelineEvents) => {
+        unsubscribe = loadUserTimeline('user1', (timelineEvents) => {
           console.log(`Timeline events loaded: ${timelineEvents.length}`);
           setEvents(timelineEvents);
           setIsLoading(false);
@@ -103,7 +103,7 @@ export const Timeline: React.FC<TimelineProps> = ({ isDarkMode, userName, isAdmi
   const handleDelete = async (event: TimelineEvent) => {
     if (window.confirm('Dieses Ereignis wirklich löschen?')) {
       try {
-        await deleteTimelineEvent(event.id.toString());
+        await deleteTimelineEvent('user1', event.id);
         console.log('Event deleted successfully');
       } catch (error) {
         console.error('Error deleting event:', error);
@@ -125,17 +125,34 @@ export const Timeline: React.FC<TimelineProps> = ({ isDarkMode, userName, isAdmi
 
     try {
       const eventData = {
-        ...formData,
-        createdBy: userName,
-        mediaUrls: [],
-        mediaTypes: [],
-        mediaFileNames: []
+        title: formData.title,
+        description: formData.description,
+        date: formData.date,
+        location: formData.location,
+        type: formData.type,
+        customEventName: formData.customEventName,
+        createdBy: userName
       };
 
-      if (editingEvent) {
-        await updateTimelineEvent(editingEvent.id.toString(), eventData);
+      if (selectedFiles.length > 0) {
+        const filesArray = Array.from(selectedFiles);
+        const fileList = {
+          length: filesArray.length,
+          item: (index: number) => filesArray[index] || null,
+          [Symbol.iterator]: function* () {
+            for (let i = 0; i < this.length; i++) {
+              yield this.item(i);
+            }
+          }
+        } as FileList;
+        
+        await uploadTimelineEvent('user1', eventData, fileList, setUploadProgress);
       } else {
-        await addTimelineEvent(eventData);
+        await uploadTimelineEvent('user1', eventData, {
+          length: 0,
+          item: () => null,
+          [Symbol.iterator]: function* () {}
+        } as FileList, setUploadProgress);
       }
 
       resetForm();
@@ -388,6 +405,75 @@ export const Timeline: React.FC<TimelineProps> = ({ isDarkMode, userName, isAdmi
                 />
               </div>
 
+              {/* Media Upload Section */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 transition-colors duration-300 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Bilder/Videos hinzufügen
+                </label>
+                <div className={`border-2 border-dashed rounded-lg p-4 transition-colors duration-300 ${
+                  isDarkMode 
+                    ? 'border-gray-600 hover:border-pink-500' 
+                    : 'border-gray-300 hover:border-pink-400'
+                }`}>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,video/*"
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        setSelectedFiles(Array.from(e.target.files));
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="cursor-pointer text-center"
+                  >
+                    <Camera className={`w-8 h-8 mx-auto mb-2 transition-colors duration-300 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`} />
+                    <p className={`text-sm transition-colors duration-300 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      Klicken Sie hier, um Dateien auszuwählen
+                    </p>
+                  </div>
+                  
+                  {selectedFiles.length > 0 && (
+                    <div className="mt-3">
+                      <p className={`text-sm font-medium mb-2 transition-colors duration-300 ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
+                        {selectedFiles.length} Datei(en) ausgewählt:
+                      </p>
+                      <div className="space-y-1">
+                        {selectedFiles.map((file, index) => (
+                          <div key={index} className={`flex items-center justify-between text-sm p-2 rounded transition-colors duration-300 ${
+                            isDarkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            <span className="truncate">{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newFiles = selectedFiles.filter((_, i) => i !== index);
+                                setSelectedFiles(newFiles);
+                              }}
+                              className={`ml-2 text-red-500 hover:text-red-400 transition-colors duration-300`}
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
@@ -472,11 +558,46 @@ export const Timeline: React.FC<TimelineProps> = ({ isDarkMode, userName, isAdmi
                     </p>
                     
                     {event.location && (
-                      <div className={`flex items-center gap-1 text-sm transition-colors duration-300 ${
+                      <div className={`flex items-center gap-1 text-sm mb-3 transition-colors duration-300 ${
                         isDarkMode ? 'text-gray-400' : 'text-gray-500'
                       }`}>
                         <MapPin className="w-4 h-4" />
                         {event.location}
+                      </div>
+                    )}
+                    
+                    {/* Event Media */}
+                    {event.mediaUrls && event.mediaUrls.length > 0 && (
+                      <div className="mt-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {event.mediaUrls.map((url, mediaIndex) => {
+                            const mediaType = event.mediaTypes?.[mediaIndex] || 'image';
+                            return (
+                              <div 
+                                key={mediaIndex} 
+                                className="relative aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => setModalMedia({ url, type: mediaType as 'image' | 'video', title: event.title })}
+                              >
+                                {mediaType === 'video' ? (
+                                  <video 
+                                    src={url} 
+                                    className="w-full h-full object-cover"
+                                    muted
+                                  />
+                                ) : (
+                                  <img 
+                                    src={url} 
+                                    alt={`${event.title} - Bild ${mediaIndex + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                )}
+                                <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                                  <Eye className="w-6 h-6 text-white opacity-0 hover:opacity-100 transition-opacity" />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -507,6 +628,41 @@ export const Timeline: React.FC<TimelineProps> = ({ isDarkMode, userName, isAdmi
           ))
         )}
       </div>
+
+      {/* Media Modal */}
+      {modalMedia && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50" onClick={() => setModalMedia(null)}>
+          <div className="relative max-w-4xl max-h-screen p-4">
+            <button
+              onClick={() => setModalMedia(null)}
+              className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+            >
+              <X className="w-8 h-8" />
+            </button>
+            
+            {modalMedia.type === 'video' ? (
+              <video 
+                src={modalMedia.url} 
+                controls 
+                autoPlay
+                className="max-w-full max-h-full"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <img 
+                src={modalMedia.url} 
+                alt={modalMedia.title}
+                className="max-w-full max-h-full object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
+            
+            <div className="absolute bottom-4 left-4 right-4 text-white text-center">
+              <h3 className="text-lg font-semibold">{modalMedia.title}</h3>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

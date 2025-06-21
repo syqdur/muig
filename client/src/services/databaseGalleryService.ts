@@ -1,7 +1,9 @@
 import { apiClient } from './apiClient';
 import { uploadBytes, ref, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '../config/firebase';
-import { MediaItem, Comment, Like, TimelineEvent } from '../types';
+import { collection, addDoc, getDocs, deleteDoc, doc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { MediaItem, Comment, Like, TimelineEvent } from '../types/index';
 
 // Convert Firebase user ID to database user ID
 const getUserDbId = (firebaseUid: string): number => {
@@ -9,7 +11,7 @@ const getUserDbId = (firebaseUid: string): number => {
   return 1;
 };
 
-// Media Management with Firebase Storage + Database metadata
+// Media Management with Firebase Storage + Firestore
 export const uploadUserFiles = async (
   userId: string,
   files: FileList, 
@@ -17,7 +19,6 @@ export const uploadUserFiles = async (
   deviceId: string,
   onProgress: (progress: number) => void
 ): Promise<void> => {
-  const dbUserId = getUserDbId(userId);
   let uploaded = 0;
   
   for (const file of Array.from(files)) {
@@ -29,15 +30,17 @@ export const uploadUserFiles = async (
       await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(storageRef);
       
-      // Save metadata to database
+      // Save metadata to Firestore
       const isVideo = file.type.startsWith('video/');
-      await apiClient.createMediaItem(dbUserId, {
-        userId: dbUserId,
+      await addDoc(collection(db, 'media'), {
+        userId: userId,
         firebaseId: fileName,
         type: isVideo ? 'video' : 'image',
         url: downloadURL,
         fileName: fileName,
-        uploadedBy: userName
+        uploadedBy: userName,
+        deviceId: deviceId,
+        createdAt: new Date().toISOString()
       });
       
       uploaded++;
@@ -56,7 +59,6 @@ export const uploadUserVideoBlob = async (
   deviceId: string,
   onProgress: (progress: number) => void
 ): Promise<void> => {
-  const dbUserId = getUserDbId(userId);
   const fileName = `${Date.now()}-recorded-video.webm`;
   const storageRef = ref(storage, `galleries/${userId}/media/${fileName}`);
   
@@ -64,13 +66,15 @@ export const uploadUserVideoBlob = async (
     await uploadBytes(storageRef, videoBlob);
     const downloadURL = await getDownloadURL(storageRef);
     
-    await apiClient.createMediaItem(dbUserId, {
-      userId: dbUserId,
+    await addDoc(collection(db, 'media'), {
+      userId: userId,
       firebaseId: fileName,
       type: 'video',
       url: downloadURL,
       fileName: fileName,
-      uploadedBy: userName
+      uploadedBy: userName,
+      deviceId: deviceId,
+      createdAt: new Date().toISOString()
     });
     
     onProgress(100);
@@ -86,15 +90,15 @@ export const addUserNote = async (
   userName: string,
   deviceId: string
 ): Promise<void> => {
-  const dbUserId = getUserDbId(userId);
-  
-  await apiClient.createMediaItem(dbUserId, {
-    userId: dbUserId,
+  await addDoc(collection(db, 'media'), {
+    userId: userId,
     type: 'note',
     text: noteText,
     uploadedBy: userName,
+    deviceId: deviceId,
     fileName: null,
-    url: null
+    url: null,
+    createdAt: new Date().toISOString()
   });
 };
 
@@ -107,37 +111,41 @@ export const editUserNote = async (
   console.log('Edit note not yet implemented for database');
 };
 
-// Gallery loading with immediate updates
+// Gallery loading with real-time Firebase updates
 export const loadUserGallery = (userId: string, callback: (items: MediaItem[]) => void) => {
-  const dbUserId = getUserDbId(userId);
+  const mediaQuery = query(
+    collection(db, 'media'), 
+    orderBy('createdAt', 'desc')
+  );
   
-  const loadData = async () => {
-    try {
-      const mediaItems = await apiClient.getUserMedia(dbUserId);
-      callback(mediaItems);
-    } catch (error) {
-      console.error('Error loading gallery:', error);
-      callback([]);
-    }
-  };
+  const unsubscribe = onSnapshot(mediaQuery, (snapshot) => {
+    const mediaItems: MediaItem[] = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data.userId === userId) {
+        mediaItems.push({
+          id: doc.id,
+          ...data
+        } as MediaItem);
+      }
+    });
+    callback(mediaItems);
+  }, (error) => {
+    console.error('Error loading gallery:', error);
+    callback([]);
+  });
   
-  // Initial load
-  loadData();
-  
-  // Set up more frequent polling for better real-time feel
-  const interval = setInterval(loadData, 1000); // Poll every second
-  
-  return () => clearInterval(interval);
+  return unsubscribe;
 };
 
 export const deleteUserMediaItem = async (userId: string, item: MediaItem): Promise<void> => {
   try {
-    // Delete from database
-    await apiClient.deleteMediaItem(item.id);
+    // Delete from Firestore
+    await deleteDoc(doc(db, 'media', item.id));
     
     // Delete from Firebase Storage if it has a file
-    if (item.fileName && item.type !== 'note') {
-      const storageRef = ref(storage, `galleries/${userId}/media/${item.fileName}`);
+    if (item.firebaseId && item.type !== 'note') {
+      const storageRef = ref(storage, `galleries/${userId}/media/${item.firebaseId}`);
       await deleteObject(storageRef);
     }
   } catch (error) {

@@ -5,6 +5,7 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AuthWrapper } from './components/auth/AuthWrapper';
 import { UserGallery } from './components/UserGallery';
 import { HomePage } from './components/HomePage';
+import { DemoGallery } from './components/DemoGallery';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<AuthWrapper />} />
           <Route path="/register" element={<AuthWrapper />} />
+          <Route path="/demo" element={<DemoGallery isDarkMode={false} />} />
           <Route 
             path="/gallery" 
             element={

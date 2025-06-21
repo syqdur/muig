@@ -95,10 +95,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(201).json(mediaItem);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Media validation error:", error);
       res.status(400).json({ message: "Invalid media data", error: error.message });
     }
+  });
+
+  // File upload endpoint for media
+  app.post("/api/users/:id/media/upload", (req, res) => {
+    const upload = app.locals.upload;
+    
+    upload.array('files', 10)(req, res, async (err: any) => {
+      if (err) {
+        return res.status(400).json({ message: err.message });
+      }
+      
+      try {
+        const files = req.files as Express.Multer.File[];
+        const userId = parseInt(req.params.id);
+        const { uploadedBy } = req.body;
+        
+        const mediaItems = [];
+        
+        for (const file of files) {
+          const mediaData = {
+            userId,
+            type: file.mimetype.startsWith('video/') ? 'video' as const : 'image' as const,
+            url: `/uploads/${file.filename}`,
+            fileName: file.filename,
+            uploadedBy: uploadedBy || 'Unknown'
+          };
+          
+          const mediaItem = await storage.createMediaItem(mediaData);
+          mediaItems.push(mediaItem);
+        }
+        
+        // Broadcast the updates
+        if (app.locals.broadcast) {
+          mediaItems.forEach(item => {
+            app.locals.broadcast({
+              type: 'MEDIA_CREATED',
+              data: item
+            });
+          });
+        }
+        
+        res.status(201).json(mediaItems);
+      } catch (error) {
+        console.error("File upload error:", error);
+        res.status(500).json({ message: "Upload failed" });
+      }
+    });
   });
 
   app.delete("/api/media/:id", async (req, res) => {
@@ -203,10 +250,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(201).json(event);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Timeline validation error:", error);
       res.status(400).json({ message: "Invalid event data", error: error.message });
     }
+  });
+
+  // File upload endpoint for timeline events
+  app.post("/api/users/:id/timeline/upload", (req, res) => {
+    const upload = app.locals.upload;
+    
+    upload.array('files', 10)(req, res, async (err: any) => {
+      if (err) {
+        return res.status(400).json({ message: err.message });
+      }
+      
+      try {
+        const files = req.files as Express.Multer.File[];
+        const userId = parseInt(req.params.id);
+        const { title, description, date, location, type, createdBy } = req.body;
+        
+        const mediaUrls = [];
+        const mediaTypes = [];
+        const mediaFileNames = [];
+        
+        for (const file of files) {
+          mediaUrls.push(`/uploads/${file.filename}`);
+          mediaTypes.push(file.mimetype.startsWith('video/') ? 'video' : 'image');
+          mediaFileNames.push(file.filename);
+        }
+        
+        const eventData = {
+          userId,
+          title,
+          description,
+          date,
+          location: location || undefined,
+          type,
+          createdBy: createdBy || 'Unknown',
+          mediaUrls,
+          mediaTypes,
+          mediaFileNames
+        };
+        
+        const event = await storage.createTimelineEvent(eventData);
+        
+        // Broadcast the update
+        if (app.locals.broadcast) {
+          app.locals.broadcast({
+            type: 'TIMELINE_CREATED',
+            data: event
+          });
+        }
+        
+        res.status(201).json(event);
+      } catch (error) {
+        console.error("Timeline upload error:", error);
+        res.status(500).json({ message: "Upload failed" });
+      }
+    });
   });
 
   app.put("/api/timeline/:id", async (req, res) => {

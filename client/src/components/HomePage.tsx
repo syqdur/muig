@@ -67,14 +67,21 @@ export const HomePage: React.FC = () => {
             </button>
           </div>
 
-          {/* Demo Button */}
-          <div className="flex justify-center mb-16">
+          {/* Demo Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
             <button
               onClick={() => setShowTestUserSetup(true)}
               className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center gap-2"
             >
               <Play className="w-5 h-5" />
               Try Demo Gallery
+            </button>
+            <button
+              onClick={() => navigate('/demo')}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center gap-2"
+            >
+              <Play className="w-5 h-5" />
+              Media Timeline Demo
             </button>
           </div>
 
